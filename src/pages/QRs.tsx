@@ -214,9 +214,12 @@ export function QRs() {
                 </div>
 
                 {/* Stock badge */}
-                <div className={`pt-1.5 font-mono text-[9px] font-bold uppercase tracking-wider ${
-                  m.qty > 0 ? 'text-green-600' : 'text-red-500'
+                <div className={`mt-2 w-full rounded-lg border py-1.5 flex items-center justify-center gap-1.5 font-mono text-xs font-black uppercase tracking-wider ${
+                  m.qty > 0
+                    ? 'bg-green-500/10 border-green-500/30 text-green-600'
+                    : 'bg-red-500/10 border-red-500/30 text-red-500'
                 }`}>
+                  <Package size={13} />
                   {m.qty > 0 ? `${m.qty} uds` : 'sin stock'}
                 </div>
 
