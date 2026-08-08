@@ -1,11 +1,11 @@
-﻿import { useState, useEffect, ReactNode } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect, ReactNode } from 'react';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useAppContext } from './store/AppContext';
+import { CartProvider } from './store/CartContext';
 import { ThemeProvider, useTheme } from './store/ThemeContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
-import { Analysis } from './pages/Analysis';
 import { Inventory } from './pages/Inventory';
 import { Operations } from './pages/Operations';
 import { History } from './pages/History';
@@ -18,11 +18,12 @@ import { Reports } from './pages/Reports';
 import { Labels } from './pages/Labels';
 import { WarehouseMap } from './pages/WarehouseMap';
 import { OperationHistory } from './pages/OperationHistory';
-import { Reservations } from './pages/Reservations';
-import { OdooStock } from './pages/OdooStock';
 import { LivexFeed } from './pages/LivexFeed';
-import { PendingAccess } from './pages/PendingAccess';
 import { ResetPassword } from './pages/ResetPassword';
+import { StockViewer } from './pages/StockViewer';
+import { PendingAccess } from './pages/PendingAccess';
+import { QRs } from './pages/QRs';
+import { GlobalScanner } from './components/GlobalScanner';
 import { supabase } from './lib/supabase';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { canView } from './lib/permissions';
@@ -49,7 +50,6 @@ function AppShell() {
       <Routes>
         <Route path="/" element={<Navigate to={homePath} replace />} />
         <Route path="/dashboard" element={<Guarded moduleId="dashboard" fallback={homePath}><Dashboard /></Guarded>} />
-        <Route path="/analysis" element={<Guarded moduleId="analysis" fallback={homePath}><Analysis /></Guarded>} />
         <Route path="/inventory" element={<Guarded moduleId="inventory" fallback={homePath}><Inventory /></Guarded>} />
         <Route path="/locations" element={<Guarded moduleId="locations" fallback={homePath}><Locations /></Guarded>} />
         <Route path="/operations" element={<Guarded moduleId="operations" fallback={homePath}><Operations /></Guarded>} />
@@ -58,12 +58,11 @@ function AppShell() {
         <Route path="/users" element={<Guarded moduleId="users" fallback={homePath}><Users /></Guarded>} />
         <Route path="/purchase-orders" element={<Guarded moduleId="purchase-orders" fallback={homePath}><PurchaseOrders /></Guarded>} />
         <Route path="/adjustments" element={<Guarded moduleId="adjustments" fallback={homePath}><Adjustments /></Guarded>} />
+        <Route path="/qrs" element={<Guarded moduleId="qrs" fallback={homePath}><QRs /></Guarded>} />
         <Route path="/reports" element={<Guarded moduleId="reports" fallback={homePath}><Reports /></Guarded>} />
         <Route path="/labels" element={<Guarded moduleId="labels" fallback={homePath}><Labels /></Guarded>} />
         <Route path="/warehouse-map" element={<Guarded moduleId="warehouse-map" fallback={homePath}><WarehouseMap /></Guarded>} />
         <Route path="/operation-history" element={<Guarded moduleId="operation-history" fallback={homePath}><OperationHistory /></Guarded>} />
-        <Route path="/reservations" element={<Guarded moduleId="reservations" fallback={homePath}><Reservations /></Guarded>} />
-        <Route path="/odoo-stock" element={<Guarded moduleId="odoo-stock" fallback={homePath}><OdooStock /></Guarded>} />
         <Route path="/livex-feed" element={<Guarded moduleId="livex-feed" fallback={homePath}><LivexFeed /></Guarded>} />
         <Route path="*" element={<Navigate to={homePath} replace />} />
       </Routes>
@@ -80,8 +79,23 @@ export default function App() {
 }
 
 function AppRoot() {
+  return (
+    <HashRouter>
+      <ErrorBoundary>
+        <AppProvider>
+          <CartProvider>
+            <AppContent />
+          </CartProvider>
+        </AppProvider>
+      </ErrorBoundary>
+    </HashRouter>
+  );
+}
+
+function AppContent() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [recoveryMode, setRecoveryMode] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
@@ -93,20 +107,23 @@ function AppRoot() {
     return () => subscription.unsubscribe();
   }, []);
 
+  if (location.pathname.startsWith('/q/')) {
+    return (
+      <Routes>
+        <Route path="/q/:model" element={<StockViewer session={session} />} />
+      </Routes>
+    );
+  }
+
   if (session === undefined) return <SplashScreen />;
-
   if (recoveryMode) return <ResetPassword />;
-
   if (!session) return <Login />;
 
   return (
-    <HashRouter>
-      <ErrorBoundary>
-        <AppProvider>
-          <AppShell />
-        </AppProvider>
-      </ErrorBoundary>
-    </HashRouter>
+    <>
+      <AppShell />
+      <GlobalScanner />
+    </>
   );
 }
 

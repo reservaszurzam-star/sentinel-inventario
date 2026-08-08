@@ -1020,7 +1020,7 @@ export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => 
               className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-500/10')}
             >
               <option value="">Seleccione Origen...</option>
-              {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              {locations.filter(l => ['ALMACEN-RESERVA GENERAL', 'ALMACEN-STOCK DESPACHO', 'ALMACEN-TEXAJO'].includes(l.name.toUpperCase())).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
             </select>
           </FormGroup>
         )}
@@ -1033,7 +1033,7 @@ export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => 
               className={cn('input-technical', errors.toLocation && 'border-red-600 bg-red-500/10')}
             >
               <option value="">Seleccione Destino...</option>
-              {locations.map(l => (
+              {locations.filter(l => ['ALMACEN-RESERVA GENERAL', 'ALMACEN-STOCK DESPACHO', 'ALMACEN-TEXAJO'].includes(l.name.toUpperCase())).map(l => (
                 <option key={l.id} value={l.id} disabled={type === 'TRANSFER' && l.id === fromLocation}>{l.name}</option>
               ))}
             </select>

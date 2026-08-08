@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;700;900&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -28,6 +28,11 @@
   --surface-alt: rgba(255,255,255,0.3);
   --table-foot:  #f0efec;
   --scrollbar-track: #E4E3E0;
+  
+  /* Skeuomorphism Light */
+  --skeuo-highlight: rgba(255, 255, 255, 0.9);
+  --skeuo-shadow: rgba(174, 172, 166, 0.6);
+  --skeuo-bg: #E4E3E0;
 
   /* semantic — unchanged in both modes */
   --accent-orange: #d97706;
@@ -61,9 +66,66 @@
   --row-hover:   rgba(255,255,255,0.07);
   --row-bg:      rgba(255,255,255,0.03);
   --surface:     rgba(255,255,255,0.05);
-  --surface-alt: rgba(255,255,255,0.03);
-  --table-foot:  #1e1e1e;
-  --scrollbar-track: #1a1a1a;
+  --surface-alt: rgba(255,255,255,0.06);
+  --table-foot:  #151515;
+  --scrollbar-track: #0f0f0f;
+
+  /* Skeuomorphism Dark */
+  --skeuo-highlight: rgba(255, 255, 255, 0.08);
+  --skeuo-shadow: rgba(0, 0, 0, 0.8);
+  --skeuo-bg: #1c1c1c;
+}
+
+/* ── Skeuomorphic Utilities ── */
+.skeuo-panel {
+  background: var(--skeuo-bg);
+  box-shadow: 
+    6px 6px 12px var(--skeuo-shadow),
+    -6px -6px 12px var(--skeuo-highlight);
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.skeuo-inset {
+  background: var(--bg);
+  box-shadow: 
+    inset 4px 4px 8px var(--skeuo-shadow),
+    inset -4px -4px 8px var(--skeuo-highlight);
+  border-radius: 0.75rem;
+}
+
+.skeuo-btn {
+  background: var(--skeuo-bg);
+  box-shadow: 
+    4px 4px 8px var(--skeuo-shadow),
+    -4px -4px 8px var(--skeuo-highlight);
+  border-radius: 0.5rem;
+  transition: all 0.1s ease-in-out;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.skeuo-btn:active, .skeuo-btn.active {
+  box-shadow: 
+    inset 4px 4px 8px var(--skeuo-shadow),
+    inset -4px -4px 8px var(--skeuo-highlight);
+  transform: translateY(1px);
+}
+
+.skeuo-btn-accent {
+  background: var(--accent-orange);
+  color: var(--bg);
+  box-shadow: 
+    4px 4px 10px rgba(0,0,0,0.3),
+    inset 2px 2px 4px rgba(255,255,255,0.3),
+    inset -2px -2px 4px rgba(0,0,0,0.2);
+  transition: all 0.1s ease-in-out;
+}
+
+.skeuo-btn-accent:active {
+  box-shadow: 
+    inset 4px 4px 8px rgba(0,0,0,0.4),
+    inset -2px -2px 4px rgba(255,255,255,0.1);
+  transform: translateY(2px);
 }
 
 body {
@@ -118,3 +180,34 @@ body {
 .theme-ink      { color: var(--ink); }
 .theme-ink-inv  { color: var(--ink-inv); }
 .theme-border   { border-color: var(--border); }
+
+
+/* ── SAAS / BENTO UI ── */
+:root {
+  --bento-radius: 12px;
+  --bento-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --bento-border: #e5e7eb;
+}
+.dark {
+  --bento-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --bento-border: #374151;
+}
+
+.saas-card {
+  background: var(--bg-card);
+  border-radius: var(--bento-radius);
+  box-shadow: var(--bento-shadow);
+  border: 1px solid var(--bento-border);
+}
+
+.saas-pill {
+  border-radius: 9999px;
+  padding: 2px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

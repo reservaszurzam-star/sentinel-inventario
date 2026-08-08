@@ -27,9 +27,48 @@ export const Inventory: React.FC = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [expandedColors, setExpandedColors] = useState<Set<string>>(new Set());
-  const [filterCategory, setFilterCategory] = useState('');
+  const [filterFabric, setFilterFabric] = useState<string | null>(null);
+  const FABRIC_TYPES = ['JERSEY', 'WAFFLE', 'CATANIA', 'FRENCH TERRY', 'BRATZ', 'PIQUE'];
+  
+  const PRODUCT_FABRICS: Record<string, string> = {
+    'BABY TY': 'JERSEY',
+    'BABY TY ESCOTADO MANGA': 'JERSEY',
+    'BABY TY ESCOTE': 'JERSEY',
+    'BABY TY MANGA': 'JERSEY',
+    'CAMISERO JERSEY': 'JERSEY',
+    'CLASICO': 'JERSEY',
+    'CLASICOS DE REGALO': 'JERSEY',
+    'OVERSIZE': 'JERSEY',
+    'SLIM FIT': 'JERSEY',
+    'JERSEY MANGA LARGA': 'JERSEY',
+    'MEDIAS CORTAS': 'JERSEY',
+    'MEDIAS LARGAS': 'JERSEY',
+    
+    'CAMISA WAFFLE': 'WAFFLE',
+    'CUELLO CHINO WAFFLE': 'WAFFLE',
+    'WAFFLE': 'WAFFLE',
+    'WAFFLE CAMISERO': 'WAFFLE',
+    'WAFFLE MANGA LARGA': 'WAFFLE',
+    'TOP RIB': 'WAFFLE',
+    'TOP RIB MANGA': 'WAFFLE',
+    
+    'PANTALON CATANIA': 'CATANIA',
+    
+    'POLERA NERU': 'FRENCH TERRY',
+    'POLERA BOXYFIT': 'FRENCH TERRY',
+    
+    'PANTALON BRATZ': 'BRATZ',
+    'PANTALON OPRA': 'BRATZ',
+    
+    'CAMISERO PIQUE': 'PIQUE',
+    'CAMISERO PIQUE MANGA LARGA': 'PIQUE',
+    'CUELLO CHINO': 'PIQUE'
+  };
   const [filterLocation, setFilterLocation] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedProductForModal, setSelectedProductForModal] = useState<string | null>(null);
+  const [modalColorFilter, setModalColorFilter] = useState<string | null>(null);
+  const [modalSizeFilter, setModalSizeFilter] = useState<string | null>(null);
   const [newProduct, setNewProduct] = useState<{code: string, name: string, color: string, size: string, category: string, lowStockThreshold: string, costPrice: string, sellPrice: string}>({ code: '', name: '', color: '', size: '', category: '', lowStockThreshold: '', costPrice: '', sellPrice: '' });
 
   const [showVariantsModal, setShowVariantsModal] = useState(false);
@@ -134,7 +173,7 @@ export const Inventory: React.FC = () => {
 
   const uniqueColors = Array.from(new Set(products.map(p => p.color).filter(Boolean))) as string[];
   const uniqueSizes = Array.from(new Set(products.map(p => p.size).filter(Boolean))) as string[];
-  const uniqueCategories = Array.from(new Set(products.map(p => p.category || 'SIN CATEGORIA').filter(Boolean))).sort();
+  
 
   // Calculate aggregated stock per product
   const inventoryData = products.map(p => {
@@ -147,7 +186,15 @@ export const Inventory: React.FC = () => {
     const searchMatch = p.name.toLowerCase().includes(s) || p.code.toLowerCase().includes(s);
     const colorMatch = filterColor ? p.color === filterColor : true;
     const sizeMatch = filterSize ? p.size === filterSize : true;
-    const categoryMatch = filterCategory ? (p.category || 'SIN CATEGORIA') === filterCategory : true;
+    let categoryMatch = true;
+    if (filterFabric) {
+      const explicitFabric = PRODUCT_FABRICS[p.name.toUpperCase()];
+      if (explicitFabric) {
+        categoryMatch = explicitFabric === filterFabric;
+      } else {
+        categoryMatch = p.name.toUpperCase().includes(filterFabric);
+      }
+    }
     const statusMatch = filterStatus === 'LOW_STOCK' ? (p.lowStockThreshold !== undefined && p.totalStock <= p.lowStockThreshold) : true;
     const locationMatch = filterLocation ? p.totalStock > 0 : true;
     return searchMatch && colorMatch && sizeMatch && categoryMatch && statusMatch && locationMatch;
@@ -351,34 +398,48 @@ export const Inventory: React.FC = () => {
       </datalist>
 
       {/* -- Tarjetas de resumen -- */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="flex flex-col gap-1.5 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[3px_3px_0_var(--border)]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)]/30 p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2">
-            <ArrowDownLeft size={14} className="text-green-700 shrink-0" />
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Total Recepcionado</span>
+            <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
+              <ArrowDownLeft size={14} className="text-green-600 dark:text-green-400" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/60">Recepcionado</span>
           </div>
-          <span className="font-mono font-black text-2xl text-[var(--ink)] leading-none">{totalRecepcionado.toLocaleString()}</span>
-          <span className="font-mono text-[8px] text-[var(--ink)]/40 uppercase tracking-widest">unidades ingresadas</span>
+          <div>
+            <span className="font-sans font-bold text-xl text-[var(--ink)] leading-none tracking-tight">{totalRecepcionado.toLocaleString()}</span>
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5 border border-[var(--border)] bg-[var(--ink)] p-3 shadow-[3px_3px_0_var(--border)]">
-          <div className="flex items-center gap-2">
-            <Package size={14} className="text-[var(--ink-inv)]/70 shrink-0" />
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink-inv)]/50">Total Disponible</span>
+
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)]/30 p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
+          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Package size={60} />
           </div>
-          <span className="font-mono font-black text-2xl text-[var(--ink-inv)] leading-none">{totalDisponible.toLocaleString()}</span>
-          <span className="font-mono text-[8px] text-[var(--ink-inv)]/40 uppercase tracking-widest">en stock ahora</span>
+          <div className="flex items-center gap-2 relative z-10">
+            <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
+              <Package size={14} className="text-blue-600 dark:text-blue-400" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/60">Disponible</span>
+          </div>
+          <div className="relative z-10">
+            <span className="font-sans font-bold text-2xl text-[var(--ink)] leading-none tracking-tight">{totalDisponible.toLocaleString()}</span>
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5 border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[3px_3px_0_var(--border)]">
+
+        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)]/30 p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2">
-            <ArrowUpRight size={14} className="text-red-700 shrink-0" />
-            <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Total Despachado</span>
+            <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
+              <ArrowUpRight size={14} className="text-red-600 dark:text-red-400" />
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/60">Despachado</span>
           </div>
-          <span className="font-mono font-black text-2xl text-[var(--ink)] leading-none">{totalDespachado.toLocaleString()}</span>
-          <span className="font-mono text-[8px] text-[var(--ink)]/40 uppercase tracking-widest">unidades salidas</span>
+          <div>
+            <span className="font-sans font-bold text-xl text-[var(--ink)] leading-none tracking-tight">{totalDespachado.toLocaleString()}</span>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 border-b border-[var(--border)] pb-3">
+      <div className="flex flex-col gap-3 mb-2">
         {/* Title row + primary actions */}
         <div className="flex justify-between items-end">
           <div>
@@ -391,7 +452,7 @@ export const Inventory: React.FC = () => {
                 <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-[var(--bg-input)] hover:bg-[var(--ink)] border border-[var(--border)] text-[var(--ink)] hover:text-[var(--ink-inv)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+                  className="bg-[var(--surface)] border border-[var(--border)]/50 text-[var(--ink)] hover:bg-[var(--bg-input)] shadow-sm font-semibold text-[11px] px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase"
                   title="IMPORTAR CSV"
                 >
                   <Upload size={13} /><span className="hidden sm:inline">IMPORTAR</span>
@@ -400,7 +461,7 @@ export const Inventory: React.FC = () => {
             )}
             <button
               onClick={exportCSV}
-              className="bg-[var(--bg-input)] hover:bg-[var(--ink)] border border-[var(--border)] text-[var(--ink)] hover:text-[var(--ink-inv)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+              className="bg-[var(--surface)] border border-[var(--border)]/50 text-[var(--ink)] hover:bg-[var(--bg-input)] shadow-sm font-semibold text-[11px] px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase"
               title="EXPORTAR CSV"
             >
               <Download size={13} /><span className="hidden sm:inline">EXPORTAR</span>
@@ -409,14 +470,14 @@ export const Inventory: React.FC = () => {
               <>
                 <button
                   onClick={() => setShowVariantsModal(true)}
-                  className="bg-[var(--bg-input)] hover:bg-[var(--ink)] text-[var(--ink)] hover:text-[var(--ink-inv)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+                  className="bg-transparent hover:bg-[var(--border)]/10 text-[var(--ink)] border border-[var(--border)]/50 shadow-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase font-semibold text-[11px] h-full"
                   title="CREAR VARIANTES EN LOTE"
                 >
                   <Package size={13} /><span className="hidden sm:inline">VARIANTES</span>
                 </button>
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="bg-[var(--ink)] hover:bg-[var(--bg-input)] text-[var(--ink-inv)] hover:text-[var(--ink)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-3 py-2 flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase shrink-0 h-[34px]"
+                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold text-[11px] px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase border border-transparent"
                 >
                   <Plus size={13} /><span className="hidden xs:inline">NUEVO SKU</span><span className="xs:hidden">NUEVO</span>
                 </button>
@@ -425,308 +486,241 @@ export const Inventory: React.FC = () => {
           </div>
         </div>
 
-        {/* Filter row · scrollable on mobile */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+        <div className="flex items-center gap-2 mt-2 pb-2 overflow-x-auto">
           <select
             value={activeBrand}
             onChange={(e) => setActiveBrand(e.target.value as any)}
-            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-28"
+            className="shrink-0 bg-[var(--surface)] border border-[var(--border)]/30 px-3 py-1.5 text-[10px] font-semibold text-[var(--ink)] rounded-lg focus:outline-none transition-all uppercase cursor-pointer w-28 shadow-sm"
           >
             <option value="OVERSHARK">OVERSHARK</option>
             <option value="BRAVOS">BRAVOS URBAN</option>
             <option value="BOX_PRIME">BOX PRIME</option>
           </select>
-          <div className="relative shrink-0 w-36 sm:w-44">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-50" />
+          <div className="shrink-0 relative w-48 bg-[var(--surface)] rounded-lg border border-[var(--border)]/30 shadow-sm">
+            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-40 text-[var(--ink)]" />
             <input
               type="text" placeholder="BUSCAR..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] px-7 py-1.5 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase h-[32px]"
+              className="w-full bg-transparent pl-7 pr-3 py-1.5 text-[10px] font-semibold text-[var(--ink)] placeholder-[var(--ink)]/40 focus:outline-none transition-all uppercase"
             />
           </div>
-          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
-            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-28">
-            <option value="">CATEGORIA</option>
-            {uniqueCategories.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select value={filterLocation} onChange={(e) => setFilterLocation(e.target.value)}
-            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-36">
-            <option value="">ALMACÉN</option>
-            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-          </select>
-          <select value={filterColor} onChange={(e) => setFilterColor(e.target.value)}
-            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-24">
-            <option value="">COLOR</option>
-            {uniqueColors.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-          <select value={filterSize} onChange={(e) => setFilterSize(e.target.value)}
-            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-24">
-            <option value="">TALLA</option>
-            {uniqueSizes.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-            className="shrink-0 bg-[var(--surface)] border border-[var(--border)] py-1.5 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[32px] w-28">
-            <option value="ALL">ESTADO</option>
-            <option value="LOW_STOCK">STOCK BAJO</option>
-          </select>
+
+          <div className="flex items-center gap-1.5 ml-2 border-l border-[var(--border)]/20 pl-4">
+            <button
+              onClick={() => setFilterFabric(null)}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shadow-sm ${!filterFabric ? 'bg-blue-600 text-white' : 'bg-[var(--surface)] text-[var(--ink)] border border-[var(--border)]/30 hover:bg-[var(--border)]/10'}`}
+            >
+              TODAS
+            </button>
+            {FABRIC_TYPES.map(c => (
+              <button
+                key={c}
+                onClick={() => setFilterFabric(c)}
+                className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shadow-sm ${filterFabric === c ? 'bg-blue-600 text-white' : 'bg-[var(--surface)] text-[var(--ink)] border border-[var(--border)]/30 hover:bg-[var(--border)]/10'}`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-
-      <div className="data-table-container flex-1 flex flex-col overflow-hidden">
-        <div className="grid grid-cols-[1fr_100px] data-header">
-          <div>PRODUCTO / COLOR / TALLA</div>
-          <div className="text-right">STOCK</div>
-        </div>
-
-        <div className="flex-1 overflow-auto">
+      {/* Product Grid */}
+      <div className="flex-1 overflow-auto mt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-12">
           {sortedProductNames.length === 0 && (
-            <div className="p-12 flex items-center justify-center text-[var(--ink)] opacity-50 font-mono text-sm uppercase">NO HAY PRODUCTOS COINCIDENTES</div>
+            <div className="col-span-full p-12 flex items-center justify-center text-[var(--ink)] opacity-50 font-sans text-sm uppercase">NO HAY PRODUCTOS COINCIDENTES</div>
           )}
           {sortedProductNames.map(productName => {
             const productItems = groupedByProduct[productName];
-            const isProductExpanded = expandedProducts.has(productName);
             const productTotal = productItems.reduce((s, i) => s + i.totalStock, 0);
-            const productLowCount = productItems.filter(i => i.lowStockThreshold !== undefined && i.totalStock <= i.lowStockThreshold).length;
-            const totalVariants = productItems.length;
-
-            const colorGroups = productItems.reduce<Record<string, typeof productItems>>((acc, p) => {
-              const col = p.color || 'SIN COLOR';
-              if (!acc[col]) acc[col] = [];
-              acc[col].push(p);
-              return acc;
-            }, {});
-            const sortedColors = Object.keys(colorGroups).sort();
-
+            
             return (
-              <React.Fragment key={productName}>
-                {/* Product header */}
-                <div
-                  className="flex items-center justify-between px-3 py-3 bg-[var(--bg)] text-[var(--ink)] border-b-2 border-b-[#141414] border-l-4 border-l-[#141414] cursor-pointer select-none hover:bg-[var(--bg-input)]/90 transition-colors"
-                  onClick={() => toggleProduct(productName)}
-                >
-                  <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                    {isProductExpanded ? <ChevronDown size={15} className="shrink-0" /> : <ChevronRight size={15} className="shrink-0" />}
-                    <span className="font-mono font-black text-[12px] uppercase tracking-widest truncate">{productName}</span>
-                    <span className="hidden sm:inline font-mono text-[9px] opacity-50 border border-[var(--border)]/25 px-1.5 py-0.5 shrink-0">{sortedColors.length} col.</span>
-                    <span className="hidden sm:inline font-mono text-[9px] opacity-50 border border-[var(--border)]/25 px-1.5 py-0.5 shrink-0">{totalVariants} SKU</span>
-                    {productLowCount > 0 && (
-                      <span className="font-mono text-[9px] bg-red-700 text-white px-1.5 py-0.5 flex items-center gap-1 shrink-0">
-                        <AlertTriangle size={10} /> {productLowCount}
-                      </span>
-                    )}
-                  </div>
-                  <span className="font-mono font-black text-sm shrink-0 ml-2">{productTotal} u.</span>
+              <div 
+                key={productName}
+                onClick={() => {
+                  setSelectedProductForModal(productName);
+                  setModalColorFilter(null);
+                  setModalSizeFilter(null);
+                }}
+                className="bg-[var(--surface)] border border-[var(--border)]/20 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:shadow-lg hover:border-blue-500/50 hover:-translate-y-1 transition-all group shadow-sm"
+              >
+                <div className="w-12 h-12 rounded-xl bg-[var(--border)]/5 flex items-center justify-center">
+                  <Package size={24} className="text-[var(--ink)]/40 group-hover:text-blue-500 group-hover:scale-110 transition-all" />
                 </div>
-
-                {/* Color sub-groups */}
-                {isProductExpanded && sortedColors.map(color => {
-                  const colorKey = `${productName}|${color}`;
-                  const colorItems = colorGroups[color];
-                  const isColorExpanded = expandedColors.has(colorKey);
-                  const colorTotal = colorItems.reduce((s, i) => s + i.totalStock, 0);
-                  const colorLowCount = colorItems.filter(i => i.lowStockThreshold !== undefined && i.totalStock <= i.lowStockThreshold).length;
-
-                  return (
-                    <React.Fragment key={colorKey}>
-                      {/* Color header */}
-                      <div
-                        className="flex items-center justify-between pl-7 md:pl-9 pr-3 py-2 bg-[var(--bg-sidebar)] border-b border-[var(--border)]/20 border-l-2 border-l-[#141414]/30 cursor-pointer select-none hover:bg-[var(--bg-sidebar)] transition-colors"
-                        onClick={() => toggleColor(colorKey)}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          {isColorExpanded ? <ChevronDown size={12} className="shrink-0" /> : <ChevronRight size={12} className="shrink-0" />}
-                          <span className="font-mono font-bold text-[11px] uppercase tracking-wide">{color}</span>
-                          <span className="font-mono text-[9px] opacity-50 border border-[var(--border)]/20 px-1.5 py-0.5 shrink-0">{colorItems.length}t</span>
-                          {colorLowCount > 0 && (
-                            <span className="font-mono text-[9px] bg-red-700 text-white px-1.5 py-0.5 flex items-center gap-1 shrink-0">
-                              <AlertTriangle size={9} />
-                            </span>
-                          )}
-                        </div>
-                        <span className="font-mono font-bold text-sm shrink-0">{colorTotal} u.</span>
-                      </div>
-
-                      {/* Size rows */}
-                      {isColorExpanded && colorItems.map(item => {
-                        const isExpanded = expandedRows.has(item.id);
-                        const isLowStock = item.lowStockThreshold !== undefined && item.totalStock <= item.lowStockThreshold;
-
-                        return (
-                          <React.Fragment key={item.id}>
-                            <div
-                              className={`flex items-center pl-12 md:pl-16 pr-3 py-2 cursor-pointer select-none transition-colors border-b border-[var(--border)]/10 ${
-                                isLowStock
-                                  ? (isExpanded ? 'bg-red-500/15' : 'bg-red-500/10 hover:bg-red-500/15')
-                                  : (isExpanded ? 'bg-[var(--bg-card-alt)]' : 'bg-[var(--surface-alt)] hover:bg-[var(--surface)]')
-                              }`}
-                              onClick={() => toggleExpand(item.id)}
-                            >
-                              <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <span className="opacity-40 shrink-0">{isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}</span>
-                                <span className="font-mono text-[10px] font-black opacity-60 w-24 shrink-0">{item.code}</span>
-                                <span className="font-mono text-[11px] font-bold uppercase">{item.size || 'UNICO'}</span>
-                                {isLowStock && <span className="bg-red-700 text-white text-[8px] px-1.5 py-0.5 shrink-0 font-mono">BAJO</span>}
-                              </div>
-                              <div className="font-mono text-right text-sm font-black flex items-center gap-1.5 shrink-0">
-                                {isLowStock && <AlertTriangle size={12} className="text-red-600" />}
-                                <span className={isLowStock ? 'text-red-700' : ''}>{item.totalStock} u.</span>
-                              </div>
-                            </div>
-
-                            {isExpanded && (
-                              <div className={`border-b border-[var(--border)] p-3 md:p-4 pl-12 md:pl-16 flex flex-col gap-4 ${isLowStock ? 'bg-red-500/10' : 'bg-[var(--surface-alt)]'}`}>
-                                <div className="flex justify-between items-start">
-                                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 flex-1">
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">CODIGO SKU</span>
-                                      <span className="text-xs font-bold font-mono">{item.code}</span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">NOMBRE</span>
-                                      <span className="text-xs font-bold font-mono">{item.name}</span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">COLOR</span>
-                                      <span className="text-xs font-bold font-mono">{item.color || 'N/A'}</span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">TALLA</span>
-                                      <span className="text-xs font-bold font-mono">{item.size || 'N/A'}</span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">UMBRAL MIN</span>
-                                      <span className="text-xs font-bold font-mono">{item.lowStockThreshold ?? 'N/A'}</span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">STOCK TOTAL</span>
-                                      <span className={`text-xs font-bold font-mono px-2 py-0.5 w-fit ${isLowStock ? 'bg-red-700 text-white' : 'bg-[var(--ink)] text-[var(--ink-inv)]'}`}>
-                                        {item.totalStock}{isLowStock ? ' (BAJO)' : ''}
-                                      </span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">COSTO</span>
-                                      <span className="text-xs font-bold font-mono">{item.costPrice ? `S/ ${item.costPrice.toFixed(2)}` : 'N/A'}</span>
-                                    </div>
-                                    <div className="flex flex-col gap-1">
-                                      <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">P. VENTA</span>
-                                      <span className="text-xs font-bold font-mono">{item.sellPrice ? `S/ ${item.sellPrice.toFixed(2)}` : 'N/A'}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col gap-2 shrink-0 ml-4">
-                                    <button onClick={(e) => { e.stopPropagation(); setQrProduct(item); }} className="bg-[var(--bg-input)] border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors p-2" title="VER QR">
-                                      <QrCode size={14} />
-                                    </button>
-                                    {currentUser.role === 'ADMIN_GENERAL' && (
-                                      <>
-                                        <button onClick={(e) => openEditModal(item, e)} className="bg-[var(--bg-input)] border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors p-2" title="EDITAR SKU">
-                                          <Edit2 size={14} />
-                                        </button>
-                                        <button onClick={(e) => { e.stopPropagation(); setProductToDelete(item); }} className="bg-[var(--bg-input)] border border-red-700 text-red-700 hover:bg-red-700 hover:text-white transition-colors p-2" title="ELIMINAR SKU">
-                                          <Trash2 size={14} />
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <div className="text-[9px] font-bold uppercase tracking-[0.2em] mb-2 opacity-70 font-mono">DESGLOSE_DE_UBICACIONES //</div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                                    {item.locations.length > 0 ? item.locations.map(loc => {
-                                      const locName = locations.find(l => l.id === loc.locationId)?.name;
-                                      return (
-                                        <div key={loc.id} className="flex justify-between items-center bg-[var(--bg-input)] border border-[var(--border)] px-3 py-2 text-[10px] uppercase font-bold shadow-[2px_2px_0_rgba(20,20,20,0.15)]">
-                                          <span className="opacity-70 font-mono text-[var(--ink)] truncate" title={locName}>{locName}</span>
-                                          <span className="font-mono font-black text-sm">{loc.quantity}</span>
-                                        </div>
-                                      );
-                                    }) : <span className="text-[9px] opacity-60 font-mono italic">SIN_STOCK_EN_ALMACEN</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </React.Fragment>
-                        );
-                      })}
-                    </React.Fragment>
-                  );
-                })}
-              </React.Fragment>
+                <h3 className="font-bold text-[var(--ink)] text-[13px] line-clamp-2 leading-tight min-h-[36px]">{productName}</h3>
+                <div className="mt-auto pt-3 flex items-center justify-between border-t border-[var(--border)]/10">
+                  <div className="flex flex-col">
+                    <span className="text-[9px] uppercase font-bold text-[var(--ink)]/40 tracking-wider">Variantes</span>
+                    <span className="text-xs font-semibold text-[var(--ink)]/70">{productItems.length} SKU</span>
+                  </div>
+                  <div className="flex flex-col text-right">
+                    <span className="text-[9px] uppercase font-bold text-[var(--ink)]/40 tracking-wider">Stock</span>
+                    <span className="text-sm font-black text-blue-600 dark:text-blue-400">{productTotal}</span>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>
       </div>
 
-      {/* Variants Batch Modal */}
+      {/* Product Details Modal */}
+      {selectedProductForModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[var(--bg)] w-full max-w-4xl h-[85vh] rounded-3xl shadow-2xl flex flex-col border border-[var(--border)]/20 overflow-hidden relative">
+            
+            {/* Header */}
+            <div className="p-6 border-b border-[var(--border)]/10 flex justify-between items-start bg-[var(--surface)]">
+              <div>
+                <h2 className="text-2xl font-black text-[var(--ink)] tracking-tight">{selectedProductForModal}</h2>
+                <p className="text-[11px] font-bold text-[var(--ink)]/50 uppercase tracking-widest mt-1">
+                  {groupedByProduct[selectedProductForModal].length} VARIANTES REGISTRADAS
+                </p>
+              </div>
+              <button onClick={() => setSelectedProductForModal(null)} className="p-2 hover:bg-[var(--border)]/10 rounded-full transition-colors cursor-pointer">
+                <X size={20} className="text-[var(--ink)]" />
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="p-4 border-b border-[var(--border)]/10 bg-[var(--surface)]/50 flex flex-col gap-4">
+              {/* Colors */}
+              <div>
+                <span className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-2 block">Filtrar por Color:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setModalColorFilter(null)}
+                    className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (!modalColorFilter ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                  >
+                    TODOS
+                  </button>
+                  {Array.from(new Set(groupedByProduct[selectedProductForModal].map(i => i.color || 'SIN COLOR'))).sort().map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setModalColorFilter(color)}
+                      className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (modalColorFilter === color ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Sizes */}
+              <div>
+                <span className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-2 block">Filtrar por Talla:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setModalSizeFilter(null)}
+                    className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (!modalSizeFilter ? 'bg-zinc-800 dark:bg-gray-200 text-white dark:text-black shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                  >
+                    TODAS
+                  </button>
+                  {Array.from(new Set(groupedByProduct[selectedProductForModal].map(i => i.size || 'SIN TALLA'))).sort().map(size => (
+                    <button
+                      key={size}
+                      onClick={() => setModalSizeFilter(size)}
+                      className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (modalSizeFilter === size ? 'bg-zinc-800 dark:bg-gray-200 text-white dark:text-black shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* List */}
+            <div className="flex-1 overflow-auto bg-[var(--border)]/5 p-4">
+              <div className="flex flex-col gap-3">
+                {groupedByProduct[selectedProductForModal]
+                  .filter(item => !modalColorFilter || (item.color || 'SIN COLOR') === modalColorFilter)
+                  .filter(item => !modalSizeFilter || (item.size || 'SIN TALLA') === modalSizeFilter)
+                  .map(item => (
+                  <div key={item.id} className="bg-[var(--surface)] border border-[var(--border)]/20 rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-lg bg-[var(--border)]/5 flex items-center justify-center shrink-0">
+                        <QrCode size={18} className="text-[var(--ink)]/40" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="font-mono text-sm font-bold text-[var(--ink)]">{item.code}</span>
+                        <div className="flex gap-2 text-[10px] uppercase font-bold text-[var(--ink)]/60 mt-1">
+                          <span>{item.color || 'N/A'}</span>
+                          <span className="opacity-50">•</span>
+                          <span>{item.size || 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-6">
+                      <div className="text-right">
+                        <div className="text-[20px] font-black text-[var(--ink)] leading-none">{item.totalStock}</div>
+                        <div className="text-[9px] uppercase font-bold text-[var(--ink)]/40 mt-1 tracking-wider">Unidades</div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 border-l border-[var(--border)]/10 pl-6">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setQrProduct(item); }}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--border)]/10 text-[var(--ink)] transition-colors cursor-pointer"
+                          title="Ver QR"
+                        >
+                          <QrCode size={14} />
+                        </button>
+                        {canEdit(currentUser.role, 'inventory') && (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setEditingProduct(item); setShowEditModal(true); }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--border)]/10 text-blue-600 transition-colors cursor-pointer"
+                              title="Editar"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setProductToDelete(item); }}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-600 transition-colors cursor-pointer"
+                              title="Eliminar"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {showVariantsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-2xl shadow-[8px_8px_0_var(--border)] flex flex-col max-h-[92vh]">
-            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center shrink-0">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">REGISTRO // VARIANTES_EN_LOTE</h2>
+          <div className="bg-[var(--bg)] bg-[var(--bg)] w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[92vh] border border-[var(--border)]/20 overflow-hidden relative">
+            <div className="p-6 border-b border-[var(--border)]/10 flex justify-between items-start bg-[var(--surface)]">
+              <h2 className="text-xl font-black text-[var(--ink)] tracking-tight">REGISTRO // VARIANTES_EN_LOTE</h2>
               <button
-                onClick={() => { setShowVariantsModal(false); setVariantBaseSearch(''); }}
-                className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 border border-transparent hover:border-[var(--border)] transition-all"
+                onClick={() => setShowVariantsModal(false)}
+                className="p-2 hover:bg-[var(--border)]/10 rounded-full transition-colors cursor-pointer text-[var(--ink)]"
               >
                 <X size={16} />
               </button>
             </div>
 
             <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-5">
-
-              {/* Base product selector */}
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">FAMILIA DE PRODUCTO BASE</label>
-                <div className="relative">
-                  <input
-                    value={variantBaseSearch}
-                    onChange={e => { setVariantBaseSearch(e.target.value); setVariantBaseOpen(true); }}
-                    onFocus={() => setVariantBaseOpen(true)}
-                    onBlur={() => setTimeout(() => setVariantBaseOpen(false), 150)}
-                    className="w-full bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                    placeholder="BUSCAR O DEJAR EN BLANCO PARA NUEVA FAMILIA"
-                  />
-                  {variantBaseOpen && (
-                    <div className="absolute z-50 w-full border-2 border-[var(--border)] shadow-[4px_4px_0_var(--border)] max-h-48 overflow-y-auto" style={{ background: 'var(--bg)', top: '100%', left: 0 }}>
-                      {productFamilies
-                        .filter(p => !variantBaseSearch || p.name.toLowerCase().includes(variantBaseSearch.toLowerCase()))
-                        .map(p => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onMouseDown={() => selectVariantBase(p)}
-                            className="w-full text-left px-3 py-2 font-mono text-[10px] font-bold uppercase hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all flex items-center justify-between gap-2"
-                          >
-                            <span>{p.name}</span>
-                            <span className="opacity-40 font-normal">{p.code.includes('-') ? p.code.split('-')[0] : p.code}-···</span>
-                          </button>
-                        ))}
-                    </div>
-                  )}
-                </div>
-                {variantForm.name && (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[var(--surface)] border border-[var(--border)]">
-                    <span className="font-mono text-[9px] opacity-50 uppercase">Siguiente SKU:</span>
-                    <span className="font-mono text-[10px] font-black">
-                      {variantForm.codePrefix.toUpperCase()}-{String(nextIndexForPrefix(variantForm.codePrefix)).padStart(3, '0')}
-                    </span>
-                    <span className="font-mono text-[9px] opacity-40">→ ···{String(nextIndexForPrefix(variantForm.codePrefix) + Math.max(variantColors.length||1,1)*Math.max(variantSizes.length||1,1)-1).padStart(3,'0')}</span>
-                  </div>
-                )}
-              </div>
-
               {/* Base fields */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE DEL PRODUCTO *</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">NOMBRE DEL PRODUCTO *</label>
                   <input
                     required
+                    list="product-names"
                     value={variantForm.name}
                     onChange={e => setVariantForm({ ...variantForm, name: e.target.value })}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-4 py-3 rounded-xl text-[13px] font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all uppercase placeholder-[var(--ink)]/30"
                     placeholder="EJ: CAMISA WAFFLE"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">PREFIJO DE CÓDIGO *</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">PREFIJO DE CÓDIGO *</label>
                   <input
                     required
                     value={variantForm.codePrefix}
@@ -736,17 +730,17 @@ export const Inventory: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORÍA</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">CATEGORÍA</label>
                   <input
                     list="category-list"
                     value={variantForm.category}
                     onChange={e => setVariantForm({ ...variantForm, category: e.target.value })}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-4 py-3 rounded-xl text-[13px] font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all uppercase placeholder-[var(--ink)]/30"
                     placeholder="EJ: POLOS"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">UMBRAL MÍNIMO</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">UMBRAL MÍNIMO</label>
                   <input
                     type="number"
                     value={variantForm.lowStockThreshold}
@@ -756,7 +750,7 @@ export const Inventory: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COSTO (S/)</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">COSTO (S/)</label>
                   <input
                     type="number" step="0.01"
                     value={variantForm.costPrice}
@@ -766,7 +760,7 @@ export const Inventory: React.FC = () => {
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">PRECIO VENTA (S/)</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">PRECIO VENTA (S/)</label>
                   <input
                     type="number" step="0.01"
                     value={variantForm.sellPrice}
@@ -779,14 +773,14 @@ export const Inventory: React.FC = () => {
 
               {/* Colors */}
               <div className="flex flex-col gap-2">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COLORES</label>
+                <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">COLORES</label>
                 <div className="flex flex-wrap gap-1.5">
                   {PRESET_COLORS.map(c => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => toggleVariantColor(c)}
-                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantColors.includes(c) ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)] shadow-[2px_2px_0_var(--border)]' : 'bg-[var(--bg-card-alt)] text-[var(--ink)] border-[var(--border)] opacity-60 hover:opacity-100'}`}
+                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantColors.includes(c) ? 'bg-blue-600 border-transparent text-white shadow-sm rounded-lg' : 'bg-[var(--surface)] border-[var(--border)]/20 text-[var(--ink)]/70 hover:bg-[var(--border)]/10 rounded-lg'}`}
                     >
                       {c}
                     </button>
@@ -797,13 +791,13 @@ export const Inventory: React.FC = () => {
                     value={customColor}
                     onChange={e => setCustomColor(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && customColor.trim()) { toggleVariantColor(customColor.trim()); setCustomColor(''); e.preventDefault(); }}}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-1.5 text-xs font-bold font-mono uppercase focus:outline-none focus:shadow-[2px_2px_0_var(--border)] flex-1 rounded-none"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 transition-all uppercase placeholder-[var(--ink)]/30 flex-1"
                     placeholder="OTRO COLOR + ENTER"
                   />
                   <button
                     type="button"
                     onClick={() => { if (customColor.trim()) { toggleVariantColor(customColor.trim()); setCustomColor(''); }}}
-                    className="bg-[var(--bg-input)] border border-[var(--border)] px-3 text-[10px] font-mono font-bold hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all"
+                    className="bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg hover:bg-[var(--border)]/10 text-[var(--ink)] transition-colors cursor-pointer"
                   >
                     +
                   </button>
@@ -815,14 +809,14 @@ export const Inventory: React.FC = () => {
 
               {/* Sizes */}
               <div className="flex flex-col gap-2">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TALLAS</label>
+                <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">TALLAS</label>
                 <div className="flex flex-wrap gap-1.5">
                   {PRESET_SIZES.map(s => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => toggleVariantSize(s)}
-                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantSizes.includes(s) ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)] shadow-[2px_2px_0_var(--border)]' : 'bg-[var(--bg-card-alt)] text-[var(--ink)] border-[var(--border)] opacity-60 hover:opacity-100'}`}
+                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantSizes.includes(s) ? 'bg-blue-600 border-transparent text-white shadow-sm rounded-lg' : 'bg-[var(--surface)] border-[var(--border)]/20 text-[var(--ink)]/70 hover:bg-[var(--border)]/10 rounded-lg'}`}
                     >
                       {s}
                     </button>
@@ -833,13 +827,13 @@ export const Inventory: React.FC = () => {
                     value={customSize}
                     onChange={e => setCustomSize(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && customSize.trim()) { toggleVariantSize(customSize.trim()); setCustomSize(''); e.preventDefault(); }}}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-1.5 text-xs font-bold font-mono uppercase focus:outline-none focus:shadow-[2px_2px_0_var(--border)] flex-1 rounded-none"
+                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 transition-all uppercase placeholder-[var(--ink)]/30 flex-1"
                     placeholder="OTRA TALLA + ENTER"
                   />
                   <button
                     type="button"
                     onClick={() => { if (customSize.trim()) { toggleVariantSize(customSize.trim()); setCustomSize(''); }}}
-                    className="bg-[var(--bg-input)] border border-[var(--border)] px-3 text-[10px] font-mono font-bold hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all"
+                    className="bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg hover:bg-[var(--border)]/10 text-[var(--ink)] transition-colors cursor-pointer"
                   >
                     +
                   </button>
@@ -863,8 +857,8 @@ export const Inventory: React.FC = () => {
             <div className="p-4 border-t border-[var(--border)] flex justify-end gap-3 shrink-0">
               <button
                 type="button"
-                onClick={() => { setShowVariantsModal(false); setVariantBaseSearch(''); }}
-                className="bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-5 py-2.5 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all shadow-[2px_2px_0_var(--border)]"
+                onClick={() => setShowVariantsModal(false)}
+                className="bg-transparent border border-[var(--border)]/20 text-[var(--ink)] px-5 py-2.5 rounded-xl hover:bg-[var(--border)]/10 transition-colors font-semibold text-[11px] uppercase"
               >
                 CANCELAR
               </button>
@@ -882,6 +876,7 @@ export const Inventory: React.FC = () => {
       )}
 
       {/* Add Product Modal */}
+      
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
           <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-md shadow-[8px_8px_0_var(--border)] flex flex-col">

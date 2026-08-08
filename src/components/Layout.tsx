@@ -31,10 +31,7 @@ const ROLE_LABELS: Record<string, string> = {
 const VIEW_AS_ROLES: Role[] = ['ADMIN_GENERAL', 'CEO', 'ADMINISTRADOR', 'JEFE_ALMACEN', 'DESPACHADOR', 'LIVEX'];
 
 export const navItems: NavItem[] = [
-  { id: 'reservations', label: 'RESERVAS', icon: ClipboardList },
-  { id: 'odoo-stock', label: 'ODOO STOCK', icon: Boxes },
   { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
-  { id: 'analysis', label: 'ANALISIS', icon: Layers },
   { id: 'inventory', label: 'INVENTARIO', icon: PackageSearch },
   { id: 'locations', label: 'UBICACIONES', icon: MapPin },
   { id: 'operations', label: 'OPERACIONES', icon: ArrowLeftRight },
@@ -44,6 +41,7 @@ export const navItems: NavItem[] = [
   { id: 'contacts', label: 'CONTACTOS', icon: UserCircle },
   { id: 'reports', label: 'REPORTES', icon: FileBarChart },
   { id: 'users', label: 'USUARIOS', icon: Users },
+  { id: 'qrs', label: 'CÓDIGOS QR', icon: QrCode },
   { id: 'operation-history', label: 'HISTORIAL GENERAL', icon: ScrollText },
   { id: 'livex-feed', label: 'LIVEX', icon: Radio },
 ];
@@ -137,18 +135,15 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               to={`/${item.id}`}
               onClick={() => { if (window.innerWidth < 768) setSidebarOpen(false); }}
               className={({ isActive }) => cn(
-                "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 outline-none border",
-                isActive ? "shadow-[2px_2px_0_var(--border)]" : "border-transparent opacity-60 hover:opacity-100"
+                "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 outline-none border border-transparent",
+                isActive ? "skeuo-btn" : "opacity-60 hover:opacity-100"
               )}
-              style={({ isActive }) => isActive
-                ? { background: 'var(--ink)', color: 'var(--ink-inv)', borderColor: 'var(--ink)' }
-                : { color: 'var(--ink)' }
-              }
+              style={{ color: 'var(--ink)' }}
               title={item.label}
             >
               {({ isActive }) => (
                 <>
-                  <item.icon size={18} className={cn("flex-shrink-0", isActive && "stroke-[2.5px]")} />
+                  <item.icon size={18} className={cn("flex-shrink-0", isActive && "stroke-[2.5px] text-blue-500")} />
                   {sidebarOpen && (
                     <span className="font-mono text-xs font-semibold uppercase tracking-wider whitespace-nowrap overflow-hidden flex items-center gap-1.5">
                       <span className="text-[9px] opacity-40 font-black tabular-nums">{item.num}</span>

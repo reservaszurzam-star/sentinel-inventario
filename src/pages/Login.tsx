@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { useTheme } from '../store/ThemeContext';
+import { User, Lock, Eye, EyeOff } from 'lucide-react';
 
 type Screen = 'login' | 'forgot' | 'forgot_sent';
 
 export const Login: React.FC = () => {
-  const { theme } = useTheme();
   const [screen, setScreen] = useState<Screen>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+
   const [error, setError] = useState(() => {
     const msg = sessionStorage.getItem('auth_message');
     if (msg) sessionStorage.removeItem('auth_message');
@@ -25,7 +26,7 @@ export const Login: React.FC = () => {
       if (error) throw error;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
-      if (msg.includes('Invalid login credentials')) setError('Email o contrasena incorrectos.');
+      if (msg.includes('Invalid login credentials')) setError('Email o contraseña incorrectos.');
       else setError(msg);
     } finally {
       setLoading(false);
@@ -51,157 +52,160 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
+    <div className="min-h-screen bg-[#EDEBE6] flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-[420px] bg-white rounded-2xl shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] p-8 md:p-10 mb-8 relative">
+        
+        {/* Logo Section */}
+        <div className="-mt-8 -mb-2 text-center flex justify-center">
           <img
-            src={theme === 'dark' ? '/Zazu/zazu-logo/zazu-dark mode.png' : '/Zazu/zazu-logo/zazu-light mode.png'}
-            alt="Zazu Express"
-            className="w-32 h-32 object-contain mx-auto mb-2"
+            src="/logo.png"
+            alt="Sentinel Core"
+            className="w-full max-w-[380px] h-auto object-contain transform scale-110 mix-blend-multiply"
           />
-          <h1 className="font-mono font-black text-lg tracking-widest text-[var(--ink)] uppercase">LOGIXZAZU</h1>
-          <p className="font-mono text-[10px] opacity-40 tracking-[0.3em] uppercase mt-1">Sistema de Gestion de Almacen</p>
         </div>
 
-        <div className="border-2 border-[var(--border)] bg-[var(--bg-input)] shadow-[6px_6px_0_var(--border)]">
-          <div className="border-b-2 border-[var(--border)]">
-            <div className="py-3 text-center font-mono text-[10px] font-bold tracking-widest uppercase bg-[var(--ink)] text-[var(--ink-inv)]">
-              {screen === 'login' ? 'INGRESAR AL SISTEMA' : screen === 'forgot' ? 'RECUPERAR CONTRASENA' : 'CORREO ENVIADO'}
-            </div>
-          </div>
-
-          {screen === 'login' && (
-            <form onSubmit={handleLogin} className="p-6 flex flex-col gap-4">
-              {error && (
-                <div className="border border-red-600 bg-red-500/10 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
-                  {error}
-                </div>
-              )}
-              <Field label="Email">
+        {/* Login Form */}
+        {screen === 'login' && (
+          <form onSubmit={handleLogin} className="flex flex-col gap-5">
+            {error && (
+              <div className="bg-[#B23A3A]/10 border border-[#B23A3A]/30 text-[#B23A3A] px-4 py-3 rounded-lg text-xs font-semibold text-center uppercase tracking-wide">
+                {error}
+              </div>
+            )}
+            
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold tracking-wider text-[#6B7177] uppercase ml-1">Email</label>
+              <div className="relative flex items-center">
+                <User className="absolute left-3.5 text-[#6B7177] w-4 h-4" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="usuario@zazu-org.com"
-                  className="auth-input"
+                  placeholder="VALENTINO@ZAZU-ORG.COM"
+                  className="w-full bg-transparent border border-gray-200 rounded-lg pl-10 pr-4 py-3.5 text-sm font-medium text-[#3F444A] placeholder:text-gray-300 focus:outline-none focus:border-[#C89B5E] focus:ring-1 focus:ring-[#C89B5E] transition-all uppercase"
                   autoComplete="email"
                   required
                 />
-              </Field>
-              <Field label="Contrase-a">
+              </div>
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold tracking-wider text-[#6B7177] uppercase ml-1">Contraseña</label>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3.5 text-[#6B7177] w-4 h-4" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  placeholder="--------"
-                  className="auth-input"
+                  placeholder="••••••••••••"
+                  className="w-full bg-transparent border border-gray-200 rounded-lg pl-10 pr-10 py-3.5 text-sm font-medium text-[#3F444A] placeholder:text-gray-300 focus:outline-none focus:border-[#C89B5E] focus:ring-1 focus:ring-[#C89B5E] transition-all tracking-[0.2em]"
                   autoComplete="current-password"
                   required
                 />
-              </Field>
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 w-full bg-[var(--ink)] text-[var(--ink-inv)] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_var(--border)] disabled:opacity-50 transition-all"
-              >
-                {loading ? 'VERIFICANDO...' : 'INGRESAR'}
-              </button>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 text-[#6B7177] hover:text-[#3F444A] transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-4 w-full bg-[#3F444A] text-[#C89B5E] py-4 rounded-lg text-xs font-bold tracking-widest uppercase hover:bg-[#34383d] active:scale-[0.99] disabled:opacity-50 transition-all"
+            >
+              {loading ? 'VERIFICANDO...' : 'INGRESAR'}
+            </button>
+
+            <div className="text-center mt-2">
               <button
                 type="button"
-                onClick={() => { setScreen('forgot'); setError(''); }}
-                className="text-center font-mono text-[9px] opacity-40 hover:opacity-80 transition-opacity uppercase tracking-widest"
+                onClick={() => setScreen('forgot')}
+                className="text-[10px] font-medium text-[#6B7177] hover:text-[#3F444A] uppercase transition-colors"
               >
-                -Olvidaste tu contrasena?
+                ¿Olvidaste tu contraseña?
               </button>
-            </form>
-          )}
+            </div>
+          </form>
+        )}
 
-          {screen === 'forgot' && (
-            <form onSubmit={handleForgot} className="p-6 flex flex-col gap-4">
-              <p className="font-mono text-[10px] opacity-60 uppercase tracking-wide leading-relaxed">
-                Ingresa tu email y te enviaremos un enlace para restablecer tu contrasena.
-              </p>
-              {error && (
-                <div className="border border-red-600 bg-red-500/10 text-red-700 px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-wide">
-                  {error}
-                </div>
-              )}
-              <Field label="Email">
+        {/* Forgot Password Form */}
+        {screen === 'forgot' && (
+          <form onSubmit={handleForgot} className="flex flex-col gap-5">
+            {error && (
+              <div className="bg-[#B23A3A]/10 border border-[#B23A3A]/30 text-[#B23A3A] px-4 py-3 rounded-lg text-xs font-semibold text-center uppercase tracking-wide">
+                {error}
+              </div>
+            )}
+            
+            <div className="flex flex-col gap-2">
+              <label className="text-[10px] font-bold tracking-wider text-[#6B7177] uppercase ml-1">Email de recuperación</label>
+              <div className="relative flex items-center">
+                <User className="absolute left-3.5 text-[#6B7177] w-4 h-4" />
                 <input
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="usuario@zazu-org.com"
-                  className="auth-input"
+                  placeholder="USUARIO@EJEMPLO.COM"
+                  className="w-full bg-transparent border border-gray-200 rounded-lg pl-10 pr-4 py-3.5 text-sm font-medium text-[#3F444A] placeholder:text-gray-300 focus:outline-none focus:border-[#C89B5E] focus:ring-1 focus:ring-[#C89B5E] transition-all uppercase"
                   autoComplete="email"
                   required
                 />
-              </Field>
-              <button
-                type="submit"
-                disabled={loading}
-                className="mt-2 w-full bg-[var(--ink)] text-[var(--ink-inv)] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_var(--border)] disabled:opacity-50 transition-all"
-              >
-                {loading ? 'ENVIANDO...' : 'ENVIAR ENLACE'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setScreen('login'); setError(''); }}
-                className="text-center font-mono text-[9px] opacity-40 hover:opacity-80 transition-opacity uppercase tracking-widest"
-              >
-                ? Volver al inicio de sesion
-              </button>
-            </form>
-          )}
+              </div>
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-4 w-full bg-[#3F444A] text-[#C89B5E] py-4 rounded-lg text-xs font-bold tracking-widest uppercase hover:bg-[#34383d] active:scale-[0.99] disabled:opacity-50 transition-all"
+            >
+              {loading ? 'ENVIANDO...' : 'ENVIAR ENLACE'}
+            </button>
 
-          {screen === 'forgot_sent' && (
-            <div className="p-6 flex flex-col gap-4 items-center text-center">
-              <div className="w-12 h-12 rounded-full bg-[var(--ink)]/10 flex items-center justify-center text-2xl">?</div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-wide">
-                Enlace enviado a:
-              </p>
-              <p className="font-mono text-xs font-black">{email}</p>
-              <p className="font-mono text-[10px] opacity-50 uppercase tracking-wide leading-relaxed">
-                Revisa tu bandeja de entrada y sigue las instrucciones para restablecer tu contrasena.
-              </p>
+            <div className="text-center mt-2">
               <button
                 type="button"
-                onClick={() => { setScreen('login'); setError(''); }}
-                className="mt-2 w-full bg-[var(--ink)] text-[var(--ink-inv)] py-3 font-mono text-[11px] font-bold tracking-widest uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all"
+                onClick={() => setScreen('login')}
+                className="text-[10px] font-medium text-[#6B7177] hover:text-[#3F444A] uppercase transition-colors"
               >
-                VOLVER AL LOGIN
+                Volver al inicio de sesión
               </button>
             </div>
-          )}
-        </div>
+          </form>
+        )}
 
-        <p className="text-center font-mono text-[9px] opacity-30 tracking-widest uppercase mt-6">
-          LogixZazu v3.0 // Acceso restringido
-        </p>
+        {/* Success Form */}
+        {screen === 'forgot_sent' && (
+          <div className="flex flex-col gap-5 text-center py-4">
+            <div className="text-[#C89B5E] mx-auto bg-[#C89B5E]/10 p-4 rounded-full">
+              <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <div>
+              <p className="text-[11px] tracking-wider uppercase text-[#6B7177] font-semibold">
+                Hemos enviado las instrucciones a:
+              </p>
+              <p className="text-sm text-[#3F444A] font-bold mt-2 uppercase">{email}</p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => setScreen('login')}
+              className="mt-6 w-full bg-gray-100 text-[#3F444A] py-4 rounded-lg text-xs font-bold tracking-widest uppercase hover:bg-gray-200 transition-all"
+            >
+              VOLVER AL INICIO
+            </button>
+          </div>
+        )}
       </div>
 
-      <style>{`
-        .auth-input {
-          width: 100%;
-          background: #fafaf9;
-          border: 1px solid #141414;
-          padding: 10px 12px;
-          font-family: var(--font-mono);
-          font-size: 12px;
-          font-weight: 600;
-          color: #141414;
-          outline: none;
-          transition: all 0.1s;
-        }
-        .auth-input:focus { background: white; box-shadow: 2px 2px 0 #141414; }
-      `}</style>
+      <div className="text-center">
+        <p className="font-mono text-[9px] text-[#6B7177]/80 tracking-[0.3em] uppercase font-semibold">
+          SENTINEL CORE V3.0 // ACCESO RESTRINGIDO
+        </p>
+      </div>
     </div>
   );
 };
-
-const Field: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <div className="flex flex-col gap-1.5">
-    <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-60">{label}</label>
-    {children}
-  </div>
-);

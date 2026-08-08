@@ -745,11 +745,9 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Recents */}
-      <div className="data-table-container mt-4">
-        <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
-          <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">04 // Ultimos_Movimientos</h3>
-          <span className="font-mono text-[10px] opacity-50">SYNC_ID: 992-RX</span>
-        </div>
+      <div className="saas-card p-6 mt-8">
+        <h2 className="text-sm font-bold tracking-widest uppercase mb-6">Actividad Reciente</h2>
+        <div className="w-full bg-[var(--surface-alt)] rounded-lg p-4">
         <div className="grid grid-cols-[100px_minmax(120px,1fr)_120px_100px_minmax(150px,1fr)] data-header">
           <div>FECHA</div>
           <div>TIPO</div>
@@ -766,7 +764,7 @@ export const Dashboard: React.FC = () => {
                : 'bg-[var(--bg-input)] border-[var(--border)] text-[var(--ink)]'; 
                
             return (
-              <div key={tx.id} className="grid grid-cols-[100px_minmax(120px,1fr)_120px_100px_minmax(150px,1fr)] data-row items-center cursor-default">
+              <div key={tx.id} className="grid grid-cols-[100px_minmax(120px,1fr)_120px_100px_minmax(150px,1fr)] items-center cursor-default py-2 border-b border-[var(--border)] last:border-0">
                 <div className="font-mono text-[10px] font-bold opacity-70">{format(new Date(tx.date), 'dd/MM/yy HH:mm')}</div>
                 <div className={`font-mono text-[9px] font-bold py-0.5 px-2 w-fit uppercase tracking-wider border ${typeColor}`}>
                   {tx.type}
@@ -781,6 +779,7 @@ export const Dashboard: React.FC = () => {
              <div className="p-8 text-center text-[var(--ink)] opacity-50 font-mono text-xs font-bold uppercase">NO SE ENCONTRARON REGISTROS</div>
           )}
         </div>
+      </div>
       </div>
         </>
       )}
