@@ -101,9 +101,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {sidebarOpen && (
             <div className="flex items-center gap-2 overflow-hidden">
               <img
-                src="/logo-barra.png"
-                alt="Sentinel Core"
-                className="h-8 w-auto max-w-[140px] object-contain flex-shrink-0"
+                src={theme === 'dark' ? '/Zazu/zazu-logo/zazu-dark mode.png' : '/Zazu/zazu-logo/zazu-light mode.png'}
+                alt="Zazu Express"
+                className="w-8 h-8 object-contain flex-shrink-0"
               />
               <span className="font-mono font-bold tracking-wider text-sm whitespace-nowrap" style={{ color: 'var(--ink)' }}>
                 {BRAND_NAME[activeBrand] ?? activeBrand}
@@ -113,9 +113,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           {!sidebarOpen && (
             <div className="hidden md:flex w-8 h-8 flex-shrink-0 items-center justify-center mx-auto">
               <img
-                src="/logo-barra.png"
-                alt="Sentinel Core"
-                className="h-8 w-auto max-w-[140px] object-contain"
+                src={theme === 'dark' ? '/Zazu/zazu-logo/zazu-dark mode.png' : '/Zazu/zazu-logo/zazu-light mode.png'}
+                alt="Zazu Express"
+                className="w-8 h-8 object-contain"
               />
             </div>
           )}
