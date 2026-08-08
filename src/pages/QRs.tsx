@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Printer, RefreshCw, Package, Search, Layers } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
@@ -77,6 +77,43 @@ export function QRs() {
     setTimeout(() => setRefreshing(false), 600);
   };
 
+  // Holds refs to each printable QR card so we can print a single one.
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Print a single model's QR as a physical label (uses the already-rendered QR svg
+  // from that card so we don't need to re-generate it in a blank window).
+  const printOne = (modelName: string) => {
+    const card = cardRefs.current.get(modelName);
+    if (!card) return;
+    const content = card.cloneNode(true) as HTMLDivElement;
+    // Remove interactive bits and force max size for the label
+    content.querySelector('.no-print-label')?.remove();
+    content.style.all = 'revert';
+    content.style.width = '200px';
+    content.style.margin = '0 auto';
+    content.style.fontFamily = "'Courier New', monospace";
+    content.style.textAlign = 'center';
+
+    const win = window.open('', '_blank');
+    if (!win) return;
+    const html = content.innerHTML;
+    win.document.write(`
+      <html><head><title>QR — ${modelName}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Courier New', monospace; background:#fff; display:flex; justify-content:center; padding:24px; }
+        .wrap { border:2px solid #141414; padding:16px; display:flex; flex-direction:column; align-items:center; gap:6px; width:220px; text-align:center; }
+        svg { width:150px !important; height:150px !important; }
+        @media print { body { padding:0; } }
+      </style></head><body>
+      <div class="wrap">${html}</div>
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 400);
+  };
+
   return (
     <div className="flex flex-col h-full bg-[var(--bg)] p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
@@ -150,6 +187,10 @@ export function QRs() {
             {qrModels.map((m) => (
               <div
                 key={m.name}
+                ref={(el) => {
+                  if (el) cardRefs.current.set(m.name, el);
+                  else cardRefs.current.delete(m.name);
+                }}
                 className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 flex flex-col items-center text-center hover:shadow-md transition-shadow print:break-inside-avoid print:border-black print:bg-white"
               >
                 {/* Model name */}
@@ -173,11 +214,20 @@ export function QRs() {
                 </div>
 
                 {/* Stock badge */}
-                <div className={`mt-auto pt-1.5 font-mono text-[9px] font-bold uppercase tracking-wider ${
+                <div className={`pt-1.5 font-mono text-[9px] font-bold uppercase tracking-wider ${
                   m.qty > 0 ? 'text-green-600' : 'text-red-500'
                 }`}>
                   {m.qty > 0 ? `${m.qty} uds` : 'sin stock'}
                 </div>
+
+                {/* Print one label */}
+                <button
+                  onClick={() => printOne(m.name)}
+                  className="no-print no-print-label mt-1 flex items-center justify-center gap-1.5 w-full px-2 py-1.5 border border-[var(--border)] rounded-lg font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--bg)] transition-colors active:scale-95"
+                >
+                  <Printer size={12} />
+                  IMPRIMIR
+                </button>
               </div>
           ))}
           </div>
