@@ -30,27 +30,7 @@ export function StockViewer({ session }: { session: any }) {
       setLoading(true);
       
       try {
-        // 1. Obtener los productos que coinciden con el modelo
-        const { data: products, error: pError } = await supabase
-          .from('products')
-          .select('id, color, size')
-          .eq('brand', brand)
-          .eq('name', modelName);
-
-        if (pError || !products) throw pError;
-
-        const productIds = products.map(p => p.id);
-
-        // 2. Obtener el stock de estos productos
-        const { data: stockData, error: sError } = await supabase
-          .from('stock_levels')
-          .select('product_id, quantity')
-          .in('product_id', productIds)
-          .eq('brand', brand);
-
-        if (sError) throw sError;
-
-        // 3. Buscar el BIN correspondiente
+        // 1. Buscar si el nombre corresponde a un BIN (Ubicación)
         const { data: binData } = await supabase
           .from('locations')
           .select('id')
@@ -59,12 +39,63 @@ export function StockViewer({ session }: { session: any }) {
           .eq('name', modelName)
           .limit(1)
           .single();
+
+        let stockData: any[] = [];
+        let productIds: string[] = [];
+
+        if (binData) {
+          setBinId(binData.id);
+          // Traer todo el stock que hay en este BIN
+          const { data: sData, error: sError } = await supabase
+            .from('stock_levels')
+            .select('product_id, quantity')
+            .eq('brand', brand)
+            .eq('location_id', binData.id)
+            .gt('quantity', 0);
+            
+          if (sError) throw sError;
+          stockData = sData || [];
+          productIds = [...new Set(stockData.map(s => s.product_id))];
+        } else {
+          // Si no es un BIN, buscar por nombre de producto (modelo)
+          const { data: pData, error: pError } = await supabase
+            .from('products')
+            .select('id')
+            .eq('brand', brand)
+            .eq('name', modelName);
+            
+          if (pError) throw pError;
+          if (pData && pData.length > 0) {
+            productIds = pData.map(p => p.id);
+            const { data: sData, error: sError } = await supabase
+              .from('stock_levels')
+              .select('product_id, quantity')
+              .in('product_id', productIds)
+              .eq('brand', brand)
+              .gt('quantity', 0);
+              
+            if (sError) throw sError;
+            stockData = sData || [];
+          }
+        }
+
+        if (productIds.length === 0) {
+          setVariants([]);
+          setTotalStock(0);
+          return;
+        }
+
+        // Obtener los detalles de los productos encontrados
+        const { data: products, error: prodError } = await supabase
+          .from('products')
+          .select('id, name, color, size')
+          .in('id', productIds);
           
-        if (binData) setBinId(binData.id);
+        if (prodError || !products) throw prodError;
 
         // Agrupar stock por producto
         const stockByProduct: Record<string, number> = {};
-        stockData?.forEach(s => {
+        stockData.forEach(s => {
           stockByProduct[s.product_id] = (stockByProduct[s.product_id] || 0) + s.quantity;
         });
 
@@ -75,6 +106,7 @@ export function StockViewer({ session }: { session: any }) {
           total += qty;
           return {
             id: p.id,
+            name: p.name,
             color: p.color || 'N/A',
             size: p.size || 'N/A',
             totalQuantity: qty,
@@ -82,7 +114,7 @@ export function StockViewer({ session }: { session: any }) {
         }).filter(v => v.totalQuantity > 0)
           .sort((a, b) => a.color.localeCompare(b.color) || a.size.localeCompare(b.size));
 
-        setVariants(variantsWithStock);
+        setVariants(variantsWithStock as any);
         setTotalStock(total);
       } catch (error) {
         console.error('Error fetching stock:', error);
@@ -153,7 +185,7 @@ export function StockViewer({ session }: { session: any }) {
                 {variants.map(v => (
                   <div key={v.id} className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-3 flex justify-between items-center">
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold tracking-wide">{v.color}</span>
+                      <span className="text-sm font-bold tracking-wide">{v.name} - {v.color}</span>
                       <span className="text-[10px] tracking-widest opacity-50 uppercase mt-0.5">Talla: {v.size}</span>
                     </div>
                     <div className="bg-[var(--bg)] border border-[var(--border)] rounded px-3 py-1">
