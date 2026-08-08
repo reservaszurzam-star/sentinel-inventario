@@ -531,8 +531,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const deleteUser = (id: string) => {
+  const deleteUser = async (id: string) => {
+    // 1. Optimistic UI update
     setUsers(prev => prev.filter(u => u.id !== id));
+    
+    // 2. Delete from 'profiles' table locally (RLS allows ADMIN_GENERAL to do this)
+    // This ensures the user disappears from the app even if the Edge Function is missing.
+    const { error } = await supabase.from('profiles').delete().eq('id', id);
+    if (error) {
+      console.error('Error deleting profile:', error);
+      // Rollback on failure
+      const { data } = await supabase.from('profiles').select('*');
+      if (data) setUsers(data.map(dbToUser));
+      return;
+    }
+
+    // 3. Attempt to cleanup auth.users via Edge Function
     fetch(`${FUNCTIONS_URL}/update-user-auth`, {
       method: 'POST',
       headers: {
@@ -541,7 +555,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         'Authorization': `Bearer ${session?.access_token ?? ''}`,
       },
       body: JSON.stringify({ action: 'delete', userId: id }),
-    });
+    }).catch(err => console.error('Edge function cleanup failed:', err));
   };
 
   const addPurchaseOrder = (po: Omit<PurchaseOrder, 'id' | 'date'>) => {
