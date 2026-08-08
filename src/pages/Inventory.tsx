@@ -565,14 +565,14 @@ export const Inventory: React.FC = () => {
 
       {/* Product Details Modal */}
       {selectedProductForModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-[var(--bg)] w-full max-w-4xl h-[85vh] rounded-3xl shadow-2xl flex flex-col border border-[var(--border)]/20 overflow-hidden relative">
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[var(--bg)] w-full max-w-4xl h-[85vh] max-h-[600px] rounded-3xl shadow-2xl flex flex-col border border-[var(--border)]/20 overflow-hidden relative">
             
             {/* Header */}
-            <div className="p-6 border-b border-[var(--border)]/10 flex justify-between items-start bg-[var(--surface)]">
-              <div>
-                <h2 className="text-2xl font-black text-[var(--ink)] tracking-tight">{selectedProductForModal}</h2>
-                <p className="text-[11px] font-bold text-[var(--ink)]/50 uppercase tracking-widest mt-1">
+            <div className="p-4 sm:p-6 border-b border-[var(--border)]/10 flex justify-between items-start bg-[var(--surface)]">
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-2xl font-black text-[var(--ink)] tracking-tight truncate">{selectedProductForModal}</h2>
+                <p className="text-[10px] sm:text-[11px] font-bold text-[var(--ink)]/50 uppercase tracking-widest mt-1">
                   {groupedByProduct[selectedProductForModal].length} VARIANTES REGISTRADAS
                 </p>
               </div>
@@ -634,28 +634,28 @@ export const Inventory: React.FC = () => {
                   .filter(item => !modalColorFilter || (item.color || 'SIN COLOR') === modalColorFilter)
                   .filter(item => !modalSizeFilter || (item.size || 'SIN TALLA') === modalSizeFilter)
                   .map(item => (
-                  <div key={item.id} className="bg-[var(--surface)] border border-[var(--border)]/20 rounded-xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-[var(--border)]/5 flex items-center justify-center shrink-0">
-                        <QrCode size={18} className="text-[var(--ink)]/40" />
+                  <div key={item.id} className="bg-[var(--surface)] border border-[var(--border)]/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-2 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[var(--border)]/5 flex items-center justify-center shrink-0">
+                        <QrCode size={16} className="text-[var(--ink)]/40" />
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-mono text-sm font-bold text-[var(--ink)]">{item.code}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-mono text-[13px] sm:text-sm font-bold text-[var(--ink)] truncate">{item.code}</span>
                         <div className="flex gap-2 text-[10px] uppercase font-bold text-[var(--ink)]/60 mt-1">
-                          <span>{item.color || 'N/A'}</span>
-                          <span className="opacity-50">•</span>
-                          <span>{item.size || 'N/A'}</span>
+                          <span className="truncate">{item.color || 'N/A'}</span>
+                          <span className="opacity-50 shrink-0">•</span>
+                          <span className="shrink-0">{item.size || 'N/A'}</span>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4 sm:gap-6 shrink-0">
                       <div className="text-right">
-                        <div className="text-[20px] font-black text-[var(--ink)] leading-none">{item.totalStock}</div>
+                        <div className="text-[18px] sm:text-[20px] font-black text-[var(--ink)] leading-none">{item.totalStock}</div>
                         <div className="text-[9px] uppercase font-bold text-[var(--ink)]/40 mt-1 tracking-wider">Unidades</div>
                       </div>
                       
-                      <div className="flex items-center gap-1 border-l border-[var(--border)]/10 pl-6">
+                      <div className="flex items-center gap-1 border-l border-[var(--border)]/10 pl-3 sm:pl-6">
                         <button
                           onClick={(e) => { e.stopPropagation(); setQrProduct(item); }}
                           className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--border)]/10 text-[var(--ink)] transition-colors cursor-pointer"

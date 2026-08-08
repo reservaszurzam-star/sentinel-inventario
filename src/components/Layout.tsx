@@ -197,7 +197,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
             <h1 className="text-sm md:text-lg font-black tracking-tighter uppercase shrink-0 truncate">{activeBrand.replace('_', ' ')} / Central_01</h1>
             <span className="hidden sm:inline text-[10px] font-mono px-2 py-0.5 whitespace-nowrap shrink-0" style={{ background: 'var(--ink)', color: 'var(--ink-inv)', border: '1px solid var(--border)' }}>/ {currentNavLabel}</span>
-          </div>
+                    </div>
           <div className="flex items-center gap-3 shrink-0">
             {isAdminGeneral && (
               <div className="hidden md:flex items-center gap-1.5 border px-2 py-1"
@@ -216,9 +216,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                   ))}
                 </select>
               </div>
-            )}
+                        )}
             <div className="flex flex-col items-end gap-0.5">
-              <span className="font-mono font-black text-[11px] uppercase tracking-wider" style={{ color: 'var(--ink)' }}>{currentUser.username || '—'}</span>
+              <span className="font-mono font-black text-[11px] uppercase tracking-wider hidden sm:block" style={{ color: 'var(--ink)' }}>{currentUser.username || '—'}</span>
               <span className="font-mono text-[9px] opacity-50 uppercase tracking-widest hidden sm:block">
                 {viewAsRole ? `VIENDO COMO: ${ROLE_LABELS[viewAsRole] ?? viewAsRole}` : (ROLE_LABELS[currentUser.role] ?? currentUser.role)}
               </span>

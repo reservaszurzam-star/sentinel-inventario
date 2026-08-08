@@ -211,3 +211,31 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+/* -- Mobile UX helpers -- */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+/* Larger, thumb-friendly tap targets on small screens */
+@media (max-width: 640px) {
+  button, [role='button'], select, input, a {
+    touch-action: manipulation;
+  }
+  .data-row { padding: 12px; }
+}
+
+/* Respect notches / safe areas on phones */
+@supports (padding: max(0px)) {
+  .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
+}
+
+/* Prevent horizontal overflow from wide modals/tables on phones */
+@media (max-width: 640px) {
+  .overflow-guard { overflow-x: auto; }
+}
