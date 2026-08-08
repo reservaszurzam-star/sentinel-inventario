@@ -99,15 +99,37 @@ export function StockViewer({ session }: { session: any }) {
           stockData = sData || [];
           productIds = [...new Set(stockData.map(s => s.product_id))];
         } else {
-          // Otherwise search by product/model name
+          // Otherwise search by product/model name.
+          // Normalize the model name (trim + collapse spaces) and use a
+          // case-insensitive match so the name from the QR always resolves.
+          const normalizedName = modelName.trim().replace(/\s+/g, ' ');
+
           const { data: pData, error: pError } = await supabase
             .from('products')
             .select('id')
             .eq('brand', brand)
-            .eq('name', modelName);
+            .ilike('name', normalizedName);
           if (pError) throw pError;
-          if (pData && pData.length > 0) {
-            productIds = pData.map(p => p.id);
+
+          // Fallback: relaxed search that ignores spaces/case in case the
+          // stored name differs slightly from the QR label.
+          let productsById = pData || [];
+          if (productsById.length === 0 && modelName.trim()) {
+            const compact = normalizedName.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '');
+            const { data: all } = await supabase
+              .from('products')
+              .select('id, name')
+              .eq('brand', brand);
+            if (all) {
+              productsById = all.filter(p =>
+                !!p.name &&
+                p.name.trim().replace(/\s+/g, ' ').replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '') === compact
+              ).map(p => ({ id: p.id, name: p.name }));
+            }
+          }
+
+          if (productsById && productsById.length > 0) {
+            productIds = productsById.map(p => p.id);
             const { data: sData, error: sError } = await supabase
               .from('stock_levels')
               .select('product_id, quantity')
