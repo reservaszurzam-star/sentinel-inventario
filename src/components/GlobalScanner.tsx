@@ -74,9 +74,17 @@ export function GlobalScanner() {
   // Al seleccionar producto, calculamos maxQty basado en el location seleccionado (o sugerimos el primero)
   useEffect(() => {
     if (availableProducts.length > 0 && !selectedProduct) {
-      setSelectedProduct(availableProducts[0].id);
+      // Intentar auto-seleccionar la primera variante que TENGA stock
+      const productWithStock = availableProducts.find(p => 
+        stockLevels.some(s => s.productId === p.id && s.quantity > 0)
+      );
+      if (productWithStock) {
+        setSelectedProduct(productWithStock.id);
+      } else {
+        setSelectedProduct(availableProducts[0].id);
+      }
     }
-  }, [availableProducts, selectedProduct]);
+  }, [availableProducts, selectedProduct, stockLevels]);
 
   useEffect(() => {
     if (selectedProduct) {
