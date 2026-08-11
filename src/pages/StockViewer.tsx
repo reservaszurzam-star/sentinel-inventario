@@ -145,8 +145,7 @@ export function StockViewer({ session }: { session: any }) {
             size: p.size || 'N/A',
             totalQuantity: qty,
           };
-        }).filter(v => v.totalQuantity > 0)
-          .sort((a, b) => a.color.localeCompare(b.color) || a.size.localeCompare(b.size));
+        }).sort((a, b) => a.color.localeCompare(b.color) || a.size.localeCompare(b.size));
 
         setVariants(variantsWithStock as any);
         setTotalStock(total);
