@@ -74,71 +74,47 @@ export function StockViewer({ session }: { session: any }) {
       setSelectedColor(null);
 
       try {
-        // 1. Check if the name is a BIN (location)
-        const { data: binData } = await supabase
-          .from('locations')
-          .select('id')
-          .eq('brand', brand)
-          .eq('type', 'BIN')
-          .eq('name', modelName)
-          .limit(1)
-          .maybeSingle();
-
         let stockData: any[] = [];
         let productIds: string[] = [];
 
-        if (binData) {
-          setBinId(binData.id);
+        // Normalize the model name (trim + collapse spaces) and use a
+        // case-insensitive match so the name from the QR always resolves.
+        const normalizedName = modelName.trim().replace(/\s+/g, ' ');
+
+        const { data: pData, error: pError } = await supabase
+          .from('products')
+          .select('id')
+          .eq('brand', brand)
+          .ilike('name', normalizedName);
+        if (pError) throw pError;
+
+        // Fallback: relaxed search that ignores spaces/case in case the
+        // stored name differs slightly from the QR label.
+        let productsById = pData || [];
+        if (productsById.length === 0 && modelName.trim()) {
+          const compact = normalizedName.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '');
+          const { data: all } = await supabase
+            .from('products')
+            .select('id, name')
+            .eq('brand', brand);
+          if (all) {
+            productsById = all.filter(p =>
+              !!p.name &&
+              p.name.trim().replace(/\s+/g, ' ').replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '') === compact
+            ).map(p => ({ id: p.id, name: p.name }));
+          }
+        }
+
+        if (productsById && productsById.length > 0) {
+          productIds = productsById.map(p => p.id);
           const { data: sData, error: sError } = await supabase
             .from('stock_levels')
             .select('product_id, quantity')
+            .in('product_id', productIds)
             .eq('brand', brand)
-            .eq('location_id', binData.id)
             .gt('quantity', 0);
           if (sError) throw sError;
           stockData = sData || [];
-          productIds = [...new Set(stockData.map(s => s.product_id))];
-        } else {
-          // Otherwise search by product/model name.
-          // Normalize the model name (trim + collapse spaces) and use a
-          // case-insensitive match so the name from the QR always resolves.
-          const normalizedName = modelName.trim().replace(/\s+/g, ' ');
-
-          const { data: pData, error: pError } = await supabase
-            .from('products')
-            .select('id')
-            .eq('brand', brand)
-            .ilike('name', normalizedName);
-          if (pError) throw pError;
-
-          // Fallback: relaxed search that ignores spaces/case in case the
-          // stored name differs slightly from the QR label.
-          let productsById = pData || [];
-          if (productsById.length === 0 && modelName.trim()) {
-            const compact = normalizedName.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '');
-            const { data: all } = await supabase
-              .from('products')
-              .select('id, name')
-              .eq('brand', brand);
-            if (all) {
-              productsById = all.filter(p =>
-                !!p.name &&
-                p.name.trim().replace(/\s+/g, ' ').replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '') === compact
-              ).map(p => ({ id: p.id, name: p.name }));
-            }
-          }
-
-          if (productsById && productsById.length > 0) {
-            productIds = productsById.map(p => p.id);
-            const { data: sData, error: sError } = await supabase
-              .from('stock_levels')
-              .select('product_id, quantity')
-              .in('product_id', productIds)
-              .eq('brand', brand)
-              .gt('quantity', 0);
-            if (sError) throw sError;
-            stockData = sData || [];
-          }
         }
 
         if (productIds.length === 0) {
