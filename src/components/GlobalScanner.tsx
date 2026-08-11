@@ -37,6 +37,20 @@ export function GlobalScanner() {
           const modelName = decodeURIComponent(qs[0]);
           setScannedModel(modelName);
           scanner.clear();
+        } else if (decodedText.includes('#/l/')) {
+          alert("Has escaneado una Ubicación. Selecciona un Producto para agregar.");
+          scanner.clear();
+        } else if (decodedText.trim().startsWith('{')) {
+          // Es un QR en formato JSON (generado en QRModal)
+          const data = JSON.parse(decodedText);
+          if (data.type === 'BIN' || data.type === 'ZONE' || data.type === 'EXTERNAL' || data.type === 'WAREHOUSE') {
+            alert("Has escaneado una Ubicación. Selecciona un Producto para agregar.");
+            scanner.clear();
+          } else {
+            // Es un producto, extraemos el nombre
+            setScannedModel(data.name || data.code || '');
+            scanner.clear();
+          }
         } else {
           // Si es un código de barras normal o nombre directo
           setScannedModel(decodedText);

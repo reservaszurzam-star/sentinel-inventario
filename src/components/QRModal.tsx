@@ -1,4 +1,4 @@
-﻿import React, { useRef } from 'react';
+import React, { useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { X, Printer } from 'lucide-react';
 
@@ -14,9 +14,10 @@ interface QRModalProps {
 export const QRModal: React.FC<QRModalProps> = ({ item, onClose }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
+  const baseUrl = window.location.origin + window.location.pathname;
   const qrValue = item.kind === 'product'
     ? JSON.stringify({ id: item.id, code: item.code, name: item.name, color: item.color, size: item.size, brand: item.brand })
-    : JSON.stringify({ id: item.id, name: item.name, type: item.type, brand: item.brand });
+    : `${baseUrl}#/l/${item.id}?b=${item.brand}`;
 
   const handlePrint = () => {
     const content = printRef.current;

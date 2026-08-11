@@ -22,6 +22,7 @@ import { OperationHistory } from './pages/OperationHistory';
 import { LivexFeed } from './pages/LivexFeed';
 import { ResetPassword } from './pages/ResetPassword';
 import { StockViewer } from './pages/StockViewer';
+import { LocationViewer } from './pages/LocationViewer';
 import { PendingAccess } from './pages/PendingAccess';
 import { QRs } from './pages/QRs';
 import { GlobalScanner } from './components/GlobalScanner';
@@ -113,6 +114,14 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/q/:model" element={<StockViewer session={session} />} />
+      </Routes>
+    );
+  }
+
+  if (location.pathname.startsWith('/l/')) {
+    return (
+      <Routes>
+        <Route path="/l/:locationId" element={<LocationViewer />} />
       </Routes>
     );
   }

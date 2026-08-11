@@ -1,0 +1,3782 @@
+import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { useAppContext } from '../store/AppContext';
+import { ModuleInfo } from '../components/ModuleInfo';
+import { TutorialModal, OPERATIONS_TUTORIAL_STEPS } from '../components/TutorialModal';
+import {
+  ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X,
+  Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
+  BarChart2, MapPin, Package, TrendingUp, TrendingDown, ShieldOff,
+  FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search, Mail, CalendarDays,
+  MoreVertical,
+} from 'lucide-react';
+import * as XLSX from 'xlsx';
+import { cn } from '../lib/utils';
+import SignaturePad from 'signature_pad';
+import { TransactionType, Transaction } from '../types';
+import { sendOperationEmail, sendOperationToInternalRecipients, OperationType, OperationItem } from '../lib/emailService';
+import { BrowserQRCodeReader } from '@zxing/browser';
+import type { IScannerControls } from '@zxing/browser';
+import { supabase } from '../lib/supabase';
+import { uploadSignature } from '../lib/signatureStorage';
+
+// --- Types ---------------------------------------------------------------------
+
+type ActiveOp = TransactionType | 'WRITEOFF';
+
+type LineItem = { key: string; productId: string; qty: string };
+
+type OperationGuide = {
+  number: string;
+  type: TransactionType;
+  date: string;
+  operator: string;
+  brand: string;
+  items: OperationItem[];
+  fromLocation?: string;
+  toLocation?: string;
+  reference: string;
+  contact?: string;
+  signature?: string;
+  photo?: string;
+};
+
+// --- Constants -----------------------------------------------------------------
+
+const TX_BADGE: Record<TransactionType, { label: string; cls: string }> = {
+  RECEPTION: { label: 'RX', cls: 'text-green-600 bg-green-500/10 border-green-500/40' },
+  DISPATCH:  { label: 'TX', cls: 'text-red-600 bg-red-500/10 border-red-500/40' },
+  TRANSFER:  { label: 'MV', cls: 'text-blue-600 bg-blue-500/10 border-blue-500/40' },
+};
+
+const GUIDE_PREFIX: Record<TransactionType, string> = {
+  RECEPTION: 'RE',
+  DISPATCH:  'DE',
+  TRANSFER:  'TR',
+};
+
+const BRAND_ABBR: Record<string, string> = { OVERSHARK: 'OS', BRAVOS: 'BU', BOX_PRIME: 'BP' };
+
+const BRAND_NAME: Record<string, string> = {
+  OVERSHARK: 'OVERSHARK',
+  BRAVOS:    'BRAVOS URBAN',
+  BOX_PRIME: 'BOX PRIME',
+};
+
+const TYPE_META: Record<TransactionType, { label: string; accentColor: string; bgColor: string; icon: string }> = {
+  RECEPTION: { label: 'RECEPCION', accentColor: '#15803d', bgColor: '#f0fdf4', icon: '?' },
+  DISPATCH:  { label: 'DESPACHO',  accentColor: '#b91c1c', bgColor: '#fef2f2', icon: '?' },
+  TRANSFER:  { label: 'TRASLADO',  accentColor: '#0369a1', bgColor: '#eff6ff', icon: '?' },
+};
+
+const WRITEOFF_REASONS = [
+  'Prendas en mal estado',
+  'Prendas rotas',
+  'Prendas sucias / manchadas',
+  'Prendas mojadas / h-medas',
+  'Prendas con defecto de fabricacion',
+  'Prendas deterioradas por almacenamiento',
+  'Merma por siniestro / robo',
+  'Otro motivo',
+];
+
+// --- Helpers -------------------------------------------------------------------
+
+async function nextGuideNumber(type: TransactionType, brand: string): Promise<string> {
+  const { data, error } = await supabase.rpc('next_guide_number', { p_brand: brand, p_type: type });
+  if (error || !data) {
+    // Fallback to a timestamp-based local id so the operation can still complete.
+    return `${GUIDE_PREFIX[type]}-${Date.now().toString().slice(-5)}`;
+  }
+  return data as string;
+}
+
+function resizeImage(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 800;
+        const ratio = Math.min(MAX / img.width, MAX / img.height, 1);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// --- CascadeProductSelector ----------------------------------------------------
+// Selector en cascada: modelo ? color ? talla ? cantidad.
+// Al agregar una l-nea, el selector se reinicia autom-ticamente.
+
+interface CascadeProps {
+  products: { id: string; name: string; code: string; color?: string; size?: string; category: string }[];
+  onAdd: (item: LineItem) => void;
+  onScanClick?: () => void;
+  stockLevels?: { productId: string; locationId: string; quantity: number }[];
+  fromLocation?: string;
+  opType?: TransactionType;
+}
+
+const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'TALLA UNICA', '(TALLA UNICA)', '10K', '20K'];
+
+function sortSizes(sizes: string[]) {
+  return [...sizes].sort((a, b) => {
+    const ia = SIZE_ORDER.indexOf(a.toUpperCase());
+    const ib = SIZE_ORDER.indexOf(b.toUpperCase());
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onScanClick, stockLevels = [], fromLocation, opType }) => {
+  const [baseName, setBaseName] = useState('');
+  const [color, setColor] = useState('');
+  // sizeQtys: { [size]: qty string } · para el modo multi-talla
+  const [sizeQtys, setSizeQtys] = useState<Record<string, string>>({});
+  // qty para modo sin tallas
+  const [qty, setQty] = useState('');
+
+  const uniqueNames = useMemo(() => [...new Set(products.map(p => p.name))].sort(), [products]);
+  const byName = useMemo(() => products.filter(p => p.name === baseName), [products, baseName]);
+  const colors = useMemo(() => [...new Set(byName.filter(p => p.color).map(p => p.color!))].sort() as string[], [byName]);
+  const byColor = useMemo(() => color ? byName.filter(p => p.color === color) : byName, [byName, color]);
+  const sizes = useMemo(() => sortSizes([...new Set(byColor.filter(p => p.size).map(p => p.size!))] as string[]), [byColor]);
+
+  const needsColor = colors.length > 0;
+  const colorReady = !needsColor || !!color;
+  const needsSize = sizes.length > 0;
+
+  // Producto unico cuando no hay tallas
+  const selectedProd = useMemo(() => {
+    if (!baseName || !colorReady || needsSize) return null;
+    return byColor[0] ?? null;
+  }, [byColor, baseName, colorReady, needsSize]);
+
+  const getAvail = (productId: string) => {
+    if (!fromLocation || opType === 'RECEPTION') return null;
+    return stockLevels
+      .filter(sl => sl.productId === productId && sl.locationId === fromLocation)
+      .reduce((sum, sl) => sum + sl.quantity, 0);
+  };
+
+  const reset = () => { setBaseName(''); setColor(''); setSizeQtys({}); setQty(''); };
+
+  // Agregar multi-talla
+  const handleAddSizes = () => {
+    let added = false;
+    for (const size of sizes) {
+      const q = parseInt(sizeQtys[size] ?? '', 10);
+      if (!q || q <= 0) continue;
+      const prod = byColor.find(p => p.size === size);
+      if (!prod) continue;
+      onAdd({ key: `${prod.id}_${Date.now()}_${size}`, productId: prod.id, qty: String(q) });
+      added = true;
+    }
+    if (added) reset();
+  };
+
+  // Agregar sin tallas
+  const handleAdd = () => {
+    const q = parseInt(qty, 10);
+    if (!selectedProd || !q || q <= 0) return;
+    onAdd({ key: `${selectedProd.id}_${Date.now()}`, productId: selectedProd.id, qty: String(q) });
+    reset();
+  };
+
+  const anySizeQty = sizes.some(s => parseInt(sizeQtys[s] ?? '', 10) > 0);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Modelo */}
+      <div className="flex gap-2">
+        <select
+          value={baseName}
+          onChange={e => { setBaseName(e.target.value); setColor(''); setSizeQtys({}); setQty(''); }}
+          className="input-technical flex-1 text-[11px]"
+        >
+          <option value="">- Seleccione modelo -</option>
+          {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+        {onScanClick && (
+          <button type="button" onClick={onScanClick} title="Escanear QR"
+            className="shrink-0 border border-[var(--border)] bg-[var(--bg-card-alt)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all px-3 flex items-center justify-center">
+            <ScanLine size={15} />
+          </button>
+        )}
+      </div>
+
+      {/* Color */}
+      {baseName && needsColor && (
+        <select
+          value={color}
+          onChange={e => { setColor(e.target.value); setSizeQtys({}); setQty(''); }}
+          className="input-technical text-[11px]"
+        >
+          <option value="">- Seleccione color -</option>
+          {colors.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      )}
+
+      {/* Tallas m-ltiples con cantidad individual */}
+      {baseName && colorReady && needsSize && (
+        <div className="flex flex-col gap-1.5 border border-[var(--border)]/20 rounded-sm p-2 bg-[var(--bg-card)]">
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Tallas y cantidades</span>
+          {sizes.map(size => {
+            const prod = byColor.find(p => p.size === size);
+            const avail = prod ? getAvail(prod.id) : null;
+            const q = parseInt(sizeQtys[size] ?? '', 10);
+            const over = avail !== null && q > avail;
+            return (
+              <div key={size} className="flex items-center gap-2">
+                <span className="font-mono text-[10px] font-black uppercase w-16 shrink-0 text-[var(--ink)]">{size}</span>
+                {avail !== null && (
+                  <span className={cn('font-mono text-[8px] font-bold w-16 shrink-0', avail === 0 ? 'text-red-500' : 'text-green-700')}>
+                    DISP: {avail}
+                  </span>
+                )}
+                <input
+                  type="number"
+                  min="0"
+                  value={sizeQtys[size] ?? ''}
+                  onChange={e => setSizeQtys(prev => ({ ...prev, [size]: e.target.value }))}
+                  placeholder="0"
+                  className={cn('input-technical text-[11px] flex-1 text-center', over && 'border-red-600 bg-red-500/10')}
+                />
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={handleAddSizes}
+            disabled={!anySizeQty}
+            className="mt-1 flex items-center justify-center gap-1.5 border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] disabled:opacity-30 transition-all px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Plus size={11} />
+            AGREGAR TALLAS
+          </button>
+        </div>
+      )}
+
+      {/* Cantidad + botón agregar (sin tallas) */}
+      {baseName && colorReady && !needsSize && selectedProd && (
+        <div className="flex items-center gap-2">
+          <div className="flex flex-col flex-1">
+            <input
+              type="number"
+              min="1"
+              value={qty}
+              onChange={e => setQty(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
+              placeholder="Cantidad"
+              className={cn('input-technical text-[11px]', getAvail(selectedProd.id) !== null && parseInt(qty, 10) > getAvail(selectedProd.id)! && 'border-red-600 bg-red-500/10')}
+              autoFocus
+            />
+            {getAvail(selectedProd.id) !== null && (
+              <span className={cn('font-mono text-[8px] font-bold mt-0.5', getAvail(selectedProd.id) === 0 ? 'text-red-500' : 'text-green-700')}>
+                DISP: {getAvail(selectedProd.id)} UND
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={!qty || parseInt(qty, 10) <= 0}
+            className="shrink-0 flex items-center gap-1.5 border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] disabled:opacity-30 transition-all px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest"
+          >
+            <Plus size={11} />
+            AGREGAR
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Bulletins Tab -------------------------------------------------------------
+
+type BulletinGroup = {
+  reference: string;
+  type: TransactionType;
+  date: Date;
+  operator: string;
+  contact?: string;
+  fromLocation?: string;
+  toLocation?: string;
+  signature?: string;
+  txIds: string[];
+  items: { productName: string; productCode: string; quantity: number; variant?: string; serialNumber?: string }[];
+};
+
+// mode 'ops'  → RECEPCIÓN + BAJA/MERMA (DISPATCH con [BAJA])
+// mode 'dispatch' → DESPACHO (DISPATCH sin [BAJA]) + TRASLADO
+// mode 'requerimientos' → TRANSFER (movimientos internos de requerimientos)
+export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' | 'requerimientos' }> = ({ mode }) => {
+  const { transactions, products, contacts, locations, activeBrand } = useAppContext();
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
+  const [bulletinData, setBulletinData] = useState<BulletinData | null>(null);
+
+  // Aggregate transactions by reference → one bulletin per operation
+  const bulletinGroups = useMemo(() => {
+    const from = dateFrom ? new Date(dateFrom + 'T00:00:00') : null;
+    const to   = dateTo   ? new Date(dateTo   + 'T23:59:59') : null;
+
+    const active = transactions.filter(tx => {
+      if (tx.status === 'CANCELLED' || !(tx.type in TX_BADGE)) return false;
+      if (!mode) return true;
+      const isWriteoff = tx.reference?.startsWith('[BAJA');
+      if (mode === 'ops')            return tx.type === 'RECEPTION' || (tx.type === 'DISPATCH' && isWriteoff);
+      if (mode === 'dispatch')       return tx.type === 'TRANSFER'  || (tx.type === 'DISPATCH' && !isWriteoff);
+      if (mode === 'despacho')       return tx.type === 'DISPATCH' && !isWriteoff;
+      if (mode === 'requerimientos') return tx.type === 'TRANSFER';
+      return true;
+    });
+
+    const map = new Map<string, BulletinGroup>();
+
+    for (const tx of active) {
+      const d = new Date(tx.date);
+      if (from && d < from) continue;
+      if (to   && d > to)   continue;
+
+      // Key: reference + calendar day — same reference on different days = different bulletins
+      const dayKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const key = (tx.reference?.trim() ? `${tx.reference.trim()}__${dayKey}` : tx.id);
+
+      const product  = products.find(p => p.id === tx.productId);
+      const contact  = contacts.find(c => c.id === tx.contactId);
+      const fromLoc  = locations.find(l => l.id === tx.fromLocationId);
+      const toLoc    = locations.find(l => l.id === tx.toLocationId);
+
+      const variant = [product?.color, product?.size].filter(Boolean).join(' · ') || undefined;
+
+      if (map.has(key)) {
+        const g = map.get(key)!;
+        g.txIds.push(tx.id);
+        g.items.push({
+          productName: product?.name ?? tx.productId,
+          productCode: product?.code ?? '',
+          quantity: tx.quantity,
+          variant,
+          serialNumber: tx.serialNumber,
+        });
+      } else {
+        map.set(key, {
+          reference: tx.reference,
+          type: tx.type,
+          date: d,
+          operator: tx.user,
+          contact: contact?.name,
+          fromLocation: fromLoc?.name,
+          toLocation: toLoc?.name,
+          signature: tx.signature,
+          txIds: [tx.id],
+          items: [{ productName: product?.name ?? tx.productId, productCode: product?.code ?? '', quantity: tx.quantity, variant, serialNumber: tx.serialNumber }],
+        });
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [transactions, products, contacts, locations, dateFrom, dateTo]);
+
+  // Group bulletin groups by calendar day
+  const dayGroups = useMemo(() => {
+    const map = new Map<string, BulletinGroup[]>();
+    for (const g of bulletinGroups) {
+      const raw = g.date.toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      const key = raw.charAt(0).toUpperCase() + raw.slice(1);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(g);
+    }
+    return Array.from(map.entries());
+  }, [bulletinGroups]);
+
+  const openBulletin = (g: BulletinGroup) => {
+    const isReq = mode === 'requerimientos';
+    setBulletinData({
+      type: g.type,
+      reference: g.reference,
+      date: g.date.toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'long', timeStyle: 'short' }),
+      rawDate: g.date.toISOString().slice(0, 10),
+      operator: g.operator,
+      brand: activeBrand,
+      txIds: g.txIds,
+      items: g.items,
+      fromLocation: g.fromLocation,
+      toLocation: g.toLocation,
+      contact: g.contact,
+      signature: g.signature,
+      ...(isReq && { labelOverride: 'REQUERIMIENTO', colorOverride: '#7c3aed' }),
+    });
+  };
+
+  const TYPE_COLOR: Record<TransactionType, string> = {
+    RECEPTION: 'text-green-600 bg-green-500/10 border-green-500/30',
+    DISPATCH:  'text-red-600 bg-red-500/10 border-red-500/30',
+    TRANSFER:  mode === 'requerimientos' ? 'text-violet-600 bg-violet-500/10 border-violet-500/30' : 'text-blue-600 bg-blue-500/10 border-blue-500/30',
+  };
+  const TYPE_LABEL: Record<TransactionType, string> = {
+    RECEPTION: 'RECEPCIÓN', DISPATCH: 'DESPACHO', TRANSFER: mode === 'requerimientos' ? 'REQUERIMIENTO' : 'TRASLADO',
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {bulletinData && <BulletinModal data={bulletinData} onClose={() => setBulletinData(null)} />}
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+        <Mail size={13} className="text-[var(--ink)] opacity-50 shrink-0" />
+        <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-50">Filtrar por fecha</span>
+        <div className="flex items-center gap-2 ml-auto">
+          <span className="font-mono text-[9px] uppercase opacity-40">Desde</span>
+          <input
+            type="date" value={dateFrom}
+            onChange={e => setDateFrom(e.target.value)}
+            className="border border-[var(--border)] bg-[var(--bg-card)] font-mono text-[10px] px-2 py-1 outline-none focus:border-[var(--ink)] cursor-pointer"
+          />
+          <span className="font-mono text-[9px] uppercase opacity-40">Hasta</span>
+          <input
+            type="date" value={dateTo}
+            onChange={e => setDateTo(e.target.value)}
+            className="border border-[var(--border)] bg-[var(--bg-card)] font-mono text-[10px] px-2 py-1 outline-none focus:border-[var(--ink)] cursor-pointer"
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="font-mono text-[9px] uppercase opacity-40 hover:opacity-100 flex items-center gap-1 transition-opacity"
+            >
+              <X size={10} /> Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Count */}
+      <div className="font-mono text-[9px] uppercase tracking-widest opacity-40 px-1">
+        {bulletinGroups.length} comprobante{bulletinGroups.length !== 1 ? 's' : ''}{(dateFrom || dateTo) ? ' (filtrado)' : ''}
+      </div>
+
+      {/* Day groups */}
+      {dayGroups.length === 0 ? (
+        <div className="border border-[var(--border)] bg-[var(--surface)] p-8 text-center font-mono text-[10px] opacity-40 uppercase tracking-widest">
+          No hay comprobantes para el rango seleccionado
+        </div>
+      ) : (
+        <div className="flex flex-col gap-5">
+          {dayGroups.map(([dateLabel, groups]) => (
+            <div key={dateLabel}>
+              {/* Day header */}
+              <div className="flex items-center gap-3 mb-2">
+                <span className="font-mono text-[9px] font-black uppercase tracking-widest opacity-60">{dateLabel}</span>
+                <div className="flex-1 h-px bg-[var(--border)] opacity-30" />
+                <span className="font-mono text-[8px] opacity-30">{groups.length} comprobante{groups.length !== 1 ? 's' : ''}</span>
+              </div>
+
+              {/* Bulletin rows */}
+              <div className="flex flex-col gap-px">
+                {groups.map((g, i) => {
+                  const badge = TYPE_COLOR[g.type];
+                  const label = TYPE_LABEL[g.type];
+                  const totalQty = g.items.reduce((s, it) => s + it.quantity, 0);
+                  return (
+                    <button
+                      key={g.reference || i}
+                      onClick={() => openBulletin(g)}
+                      className="flex items-center gap-3 border border-[var(--border)]/20 bg-[var(--surface)] hover:bg-[var(--bg-card)] hover:border-[var(--border)]/50 px-4 py-3 text-left transition-all group"
+                    >
+                      {/* Type badge */}
+                      <span className={cn('shrink-0 font-mono text-[8px] font-black px-2 py-0.5 border', badge)}>{label}</span>
+
+                      {/* Reference */}
+                      <span className="shrink-0 font-mono text-[10px] font-bold opacity-70 w-28 truncate">{g.reference || '—'}</span>
+
+                      {/* Products summary */}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-[10px] font-bold truncate">
+                          {g.items.length === 1
+                            ? g.items[0].productName
+                            : `${g.items.length} productos`}
+                        </div>
+                        <div className="font-mono text-[9px] opacity-40 truncate">
+                          {g.contact ? g.contact : g.items.length > 1 ? g.items.map(it => it.productName).join(', ') : ''}
+                        </div>
+                      </div>
+
+                      {/* Total qty */}
+                      <span className="shrink-0 font-mono text-[11px] font-black bg-[var(--ink)] text-[var(--ink-inv)] px-2 py-0.5">{totalQty}</span>
+
+                      {/* Time */}
+                      <span className="shrink-0 font-mono text-[9px] opacity-40 hidden sm:block w-16 text-right">
+                        {g.date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+
+                      <Mail size={11} className="shrink-0 opacity-30 group-hover:opacity-70 transition-opacity" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Main Page -----------------------------------------------------------------
+
+export const Operations: React.FC = () => {
+  const [activeOpt, setActiveOpt] = useState<ActiveOp>('RECEPTION' as ActiveOp);
+  const [showTutorial, setShowTutorial] = useState(false);
+
+  // Read sessionStorage filter set by Dashboard KPI cards
+  const storedFilter = (() => {
+    try { return JSON.parse(sessionStorage.getItem('operationsLogFilter') || 'null'); } catch { return null; }
+  })();
+  const [mainTab, setMainTab] = useState<'operations' | 'log' | 'reports' | 'bulletins'>(storedFilter ? 'log' : 'operations');
+
+  return (
+    <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
+      <TutorialModal
+        open={showTutorial}
+        onClose={() => setShowTutorial(false)}
+        steps={OPERATIONS_TUTORIAL_STEPS}
+      />
+      <div className="flex items-stretch gap-0">
+        <div className="flex-1">
+          <ModuleInfo
+            number="07"
+            title="Operaciones"
+            description="Registro de movimientos de stock: entradas, salidas y transferencias. Soporta m-ltiples productos por operacion."
+          />
+        </div>
+        <button
+          onClick={() => setShowTutorial(true)}
+          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
+          title="Ver tutorial"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+          </svg>
+          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
+        </button>
+      </div>
+
+      {/* Main tabs */}
+      <div className="flex border border-[var(--border)] bg-[var(--bg-sidebar)]">
+        <button
+          onClick={() => setMainTab('operations')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
+            mainTab === 'operations'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
+          )}
+        >
+          <ArrowRightLeft size={14} />
+          OPERACIONES
+        </button>
+        <button
+          onClick={() => setMainTab('log')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
+            mainTab === 'log'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
+          )}
+        >
+          <FileText size={14} />
+          HISTORIAL
+        </button>
+        <button
+          onClick={() => setMainTab('reports')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
+            mainTab === 'reports'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
+          )}
+        >
+          <BarChart2 size={14} />
+          REPORTES
+        </button>
+        <button
+          onClick={() => setMainTab('bulletins')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
+            mainTab === 'bulletins'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
+          )}
+        >
+          <Mail size={14} />
+          COMPROBANTES
+        </button>
+      </div>
+
+      {mainTab === 'operations' && (
+        <>
+          <div className="grid grid-cols-2 gap-2 bg-[var(--bg-sidebar)] border border-[var(--border)] p-2 shadow-[4px_4px_0_var(--border)]">
+            <OptButton
+              icon={<ArrowDownLeft size={18} />}
+              label="RECEPCION"
+              desc="Registra entrada de productos al stock. Suma al inventario total."
+              active={activeOpt === 'RECEPTION'}
+              onClick={() => setActiveOpt('RECEPTION')}
+            />
+            <OptButton
+              icon={<ShieldOff size={18} />}
+              label="BAJA / MERMA"
+              desc="Registra prendas dadas de baja. Descuenta del inventario con motivo."
+              active={activeOpt === 'WRITEOFF'}
+              onClick={() => setActiveOpt('WRITEOFF')}
+              accent="red"
+            />
+          </div>
+
+          <div className="bg-[var(--bg-card)] border border-[var(--border)] p-6 lg:p-8 relative overflow-visible">
+            <div className="absolute top-0 right-0 p-4 font-mono text-[100px] leading-none opacity-5 select-none pointer-events-none font-black">
+              {activeOpt === 'RECEPTION' ? 'RX' : 'BJ'}
+            </div>
+            {activeOpt === 'WRITEOFF'
+              ? <WriteOffForm key="writeoff" />
+              : <OperationForm key={activeOpt} type={activeOpt as TransactionType} />
+            }
+          </div>
+        </>
+      )}
+
+      {mainTab === 'log' && (
+        <TransactionLog initialFilter={storedFilter} />
+      )}
+
+      {mainTab === 'reports' && (
+        <div className="border border-[var(--border)] bg-[var(--surface-alt)] p-5 shadow-[3px_3px_0_var(--border)]">
+          <OperationsReport mode="ops" />
+        </div>
+      )}
+
+      {mainTab === 'bulletins' && (
+        <BulletinsTab mode="ops" />
+      )}
+    </div>
+  );
+};
+
+// --- OptButton -----------------------------------------------------------------
+
+const OptButton = ({ icon, label, desc, active, onClick, accent }: any) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      'flex flex-col items-center gap-1.5 p-2.5 sm:p-3 lg:p-4 border transition-all',
+      accent === 'red'
+        ? active
+          ? 'border-red-800 bg-red-800 text-white shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
+          : 'border-red-800 bg-[var(--surface)] text-[var(--ink)] hover:bg-red-800 hover:text-white'
+        : active
+          ? 'border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] shadow-[inset_2px_2px_0_rgba(0,0,0,0.5)]'
+          : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)]'
+    )}
+  >
+    <div className={cn(active ? '' : 'opacity-70')}>{icon}</div>
+    <span className={cn('font-mono text-[9px] lg:text-[10px] tracking-widest font-bold uppercase', active ? '' : 'opacity-70')}>{label}</span>
+    {desc && (
+      <span className={cn(
+        'hidden sm:block font-mono text-[7.5px] leading-tight text-center normal-case tracking-normal font-normal border-t pt-1.5 mt-0.5 w-full opacity-60',
+        active ? 'border-white/20' : 'border-[var(--border-soft)]'
+      )}>
+        {desc}
+      </span>
+    )}
+  </button>
+);
+
+// --- FormGroup -----------------------------------------------------------------
+
+const FormGroup: React.FC<{ label: string; error?: string; children: React.ReactNode; className?: string }> = ({ label, error, children, className }) => (
+  <div className={cn('flex flex-col gap-1.5', className)}>
+    <label className={cn('font-mono text-[9px] font-bold tracking-[0.2em] uppercase', error ? 'text-red-700 opacity-100' : 'opacity-80')}>{label}</label>
+    {children}
+    {error && <span className="font-mono text-[9px] font-bold text-red-700 uppercase mt-0.5 border border-red-700 px-1 py-0.5 bg-red-500/15 w-fit shrink-0 tracking-wider">{error}</span>}
+  </div>
+);
+
+const PreviewRow = ({ label, value }: { label: string; value: string }) => (
+  <tr className="border-b border-[var(--border)]/15">
+    <td className="py-1.5 pr-3 font-bold uppercase opacity-50 text-[9px] tracking-widest">{label}</td>
+    <td className="py-1.5 pl-3 font-bold uppercase text-right">{value}</td>
+  </tr>
+);
+
+// --- OperationForm -------------------------------------------------------------
+
+export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => {
+  const { products, locations, addTransaction, stockLevels, activeBrand, contacts, currentUser, users } = useAppContext();
+
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [fromLocation, setFromLocation] = useState('');
+  const [toLocation, setToLocation] = useState('');
+  const [reference, setReference] = useState('');
+  const [serialNumber, setSerialNumber] = useState('');
+  const [contactId, setContactId] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const padRef = useRef<SignaturePad | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * ratio;
+    canvas.height = canvas.offsetHeight * ratio;
+    canvas.getContext('2d')?.scale(ratio, ratio);
+    const pad = new SignaturePad(canvas);
+    padRef.current = pad;
+    pad.addEventListener('beginStroke', () => setErrors(prev => ({ ...prev, signature: '' })));
+    return () => { pad.off(); padRef.current = null; };
+  }, []);
+  const [scanningForKey, setScanningForKey] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [lineErrors, setLineErrors] = useState<Record<string, { productId?: string; qty?: string }>>({});
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [guide, setGuide] = useState<OperationGuide | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [pendingSig, setPendingSig] = useState<string | undefined>(undefined);
+
+  const addLineItems = (items: LineItem[]) =>
+    setLineItems(prev => [...prev, ...items]);
+
+  const removeLineItem = (key: string) =>
+    setLineItems(prev => prev.filter(l => l.key !== key));
+
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const resized = await resizeImage(file);
+    setPhoto(resized);
+  };
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    const newLineErrors: Record<string, { productId?: string; qty?: string }> = {};
+    let hasLineError = false;
+
+    if (lineItems.length === 0) {
+      newErrors.lines = 'AGREGA_AL_MENOS_UN_PRODUCTO';
+    }
+
+    for (const item of lineItems) {
+      const errs: { productId?: string; qty?: string } = {};
+      const qty = parseInt(item.qty, 10);
+      if (!item.qty || isNaN(qty) || qty <= 0) {
+        errs.qty = 'CANTIDAD_INVALIDA';
+      } else if ((type === 'DISPATCH' || type === 'TRANSFER') && item.productId && fromLocation) {
+        const avail = stockLevels.filter(s => s.productId === item.productId && s.locationId === fromLocation).reduce((sum, s) => sum + s.quantity, 0);
+        if (avail === 0) errs.productId = 'SIN_STOCK_EN_ORIGEN';
+        else if (qty > avail) errs.qty = 'CANTIDAD_EXCEDE_STOCK';
+      }
+      if (Object.keys(errs).length) { newLineErrors[item.key] = errs; hasLineError = true; }
+    }
+
+    if (type === 'RECEPTION' && !toLocation) newErrors.toLocation = 'SELECCIONE_DESTINO';
+    if (type === 'DISPATCH' && !fromLocation) newErrors.fromLocation = 'SELECCIONE_ORIGEN';
+    if (type === 'TRANSFER') {
+      if (!fromLocation) newErrors.fromLocation = 'SELECCIONE_ORIGEN';
+      if (!toLocation) newErrors.toLocation = 'SELECCIONE_DESTINO';
+      if (fromLocation && toLocation && fromLocation === toLocation) newErrors.toLocation = 'DESTINO_DEBE_SER_DIFERENTE';
+    }
+    if (!reference.trim()) newErrors.reference = 'REFERENCIA_OBLIGATORIA';
+    if ((type === 'RECEPTION' || type === 'DISPATCH') && (!padRef.current || padRef.current.isEmpty())) {
+      newErrors.signature = 'FIRMA_REQUERIDA';
+    }
+
+    setErrors(newErrors);
+    setLineErrors(newLineErrors);
+    return !hasLineError && Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    if (!validate()) return;
+    const sigData = (type === 'RECEPTION' || type === 'DISPATCH') && padRef.current && !padRef.current.isEmpty()
+      ? padRef.current.toDataURL()
+      : undefined;
+    setPendingSig(sigData);
+    setShowPreview(true);
+  };
+
+  const confirmPreview = () => {
+    setShowPreview(false);
+    executeTransactions(pendingSig);
+  };
+
+  const executeTransactions = async (sigData: string | undefined) => {
+    const guideNumber = await nextGuideNumber(type, activeBrand);
+    const guideItems: OperationItem[] = [];
+
+    // Upload signature to Storage so the DB stores a URL instead of a 50KB
+    // base64 blob. Photos aren't stored in the DB · they only travel embedded
+    // in the email (as CID attachments).
+    const storedSig = sigData ? await uploadSignature(sigData) : undefined;
+
+    try {
+      for (const item of lineItems) {
+        await addTransaction({
+          type,
+          productId: item.productId,
+          quantity: parseInt(item.qty, 10),
+          fromLocationId: type !== 'RECEPTION' ? fromLocation || undefined : undefined,
+          toLocationId: type !== 'DISPATCH' ? toLocation || undefined : undefined,
+          reference,
+          user: currentUser.username,
+          contactId: contactId || undefined,
+          signature: storedSig,
+          serialNumber: activeBrand === 'BOX_PRIME' ? serialNumber || undefined : undefined,
+        });
+        const product = products.find(p => p.id === item.productId);
+        guideItems.push({
+          productName: [product?.name, product?.color, product?.size].filter(Boolean).join(' · ') || item.productId,
+          productCode: product?.code ?? '',
+          quantity: parseInt(item.qty, 10),
+          serialNumber: activeBrand === 'BOX_PRIME' ? serialNumber || undefined : undefined,
+        });
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'ERROR AL REGISTRAR' });
+      return;
+    }
+
+    const fromLoc = locations.find(l => l.id === fromLocation);
+    const toLoc = locations.find(l => l.id === toLocation);
+    const contact = contacts.find(c => c.id === contactId);
+    const now = new Date();
+    const dateStr = now.toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'short', timeStyle: 'short' });
+
+    setGuide({
+      number: guideNumber,
+      type,
+      date: dateStr,
+      operator: currentUser.username,
+      brand: activeBrand,
+      items: guideItems,
+      fromLocation: fromLoc?.name,
+      toLocation: toLoc?.name,
+      reference,
+      contact: contact?.name,
+      signature: sigData,
+      photo: photo ?? undefined,
+    });
+
+    // Reset
+    setLineItems([]);
+    setFromLocation('');
+    setToLocation('');
+    setReference('');
+    setSerialNumber('');
+    setContactId('');
+    setPhoto(null);
+    setErrors({});
+    setLineErrors({});
+    padRef.current?.clear();
+    if (photoInputRef.current) photoInputRef.current.value = '';
+
+    // Email payload · pass the original data URLs so emailService can embed
+    // the images as CID attachments. Gmail/Outlook strip <img src="data:...">
+    // and Storage public URLs aren't always rendered either, so we attach the
+    // images directly into the MIME message.
+    const emailPayload = {
+      brand: activeBrand,
+      operationType: type as OperationType,
+      reference,
+      date: dateStr,
+      operator: currentUser.username,
+      items: guideItems,
+      fromLocation: fromLoc?.name,
+      toLocation: toLoc?.name,
+      contact: contact?.name,
+      signature: sigData,
+      photo: photo ?? undefined,
+    };
+
+    // Email to operator
+    const userRecord = users.find(u => u.id === currentUser.id);
+    const operatorEmail = (userRecord as any)?.emailPersonal || (userRecord as any)?.email;
+    if (operatorEmail) {
+      setFeedback({ type: 'success', message: '-OPERACION REGISTRADA! ENVIANDO COMPROBANTE...' });
+      sendOperationEmail({ toEmail: operatorEmail, toName: currentUser.username, ...emailPayload })
+        .then(() => setFeedback({ type: 'success', message: `-REGISTRADA! COMPROBANTE ? ${operatorEmail}` }))
+        .catch((err) => setFeedback({ type: 'success', message: `-OPERACION REGISTRADA! (SIN EMAIL: ${err instanceof Error ? err.message : 'ERROR DESCONOCIDO'})` }));
+    } else {
+      setFeedback({ type: 'success', message: '-OPERACION REGISTRADA CORRECTAMENTE!' });
+    }
+    setTimeout(() => setFeedback(null), 6000);
+
+    // Email to contact (supplier on RECEPTION, client on DISPATCH)
+    if (contact?.email && (type === 'RECEPTION' || type === 'DISPATCH')) {
+      sendOperationEmail({ toEmail: contact.email, toName: contact.name, ...emailPayload }).catch(() => {});
+    }
+
+    // Email to internal recipients (always)
+    sendOperationToInternalRecipients(emailPayload).catch((err) => console.error('send-email (internal recipients) failed:', err));
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 relative z-10">
+      {feedback && (
+        <div className={cn(
+          'p-3 border font-bold font-mono text-xs uppercase tracking-widest',
+          feedback.type === 'success' ? 'bg-green-500/15 border-green-700 text-green-600' : 'bg-red-500/15 border-red-700 text-red-600'
+        )}>
+          {feedback.message}
+        </div>
+      )}
+
+      <div className="border-b border-[var(--border)] pb-3 hidden md:block">
+        <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest">
+          {type === 'RECEPTION' ? '01 // NUEVA RECEPCION DE INVENTARIO' : type === 'DISPATCH' ? '01 // DESPACHO DE MATERIALES' : '01 // TRANSLADO INTERNO ZONAS'}
+        </h3>
+        <p className="opacity-60 text-[10px] font-mono mt-1 uppercase tracking-widest font-bold">
+          SISTEMA_DE_REGISTRO_ACTIVO // {type}
+        </p>
+      </div>
+
+      {/* -- SELECTOR DE PRODUCTOS -- */}
+      <div className="flex flex-col gap-3">
+        <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">
+          AGREGAR PRODUCTOS
+        </label>
+        <div className="border border-[var(--border)]/20 bg-[var(--bg-card)] p-3">
+          <CascadeProductSelector
+            products={products}
+            onAdd={(item) => addLineItems([item])}
+            onScanClick={() => setScanningForKey('matrix')}
+            stockLevels={stockLevels}
+            fromLocation={fromLocation}
+            opType={type}
+          />
+        </div>
+
+        {errors.lines && (
+          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-500/15 w-fit tracking-wider">
+            {errors.lines}
+          </span>
+        )}
+
+        {/* Lista de l-neas confirmadas */}
+        {lineItems.length > 0 && (
+          <div className="flex flex-col gap-0 border border-[var(--border)]/20 overflow-hidden">
+            <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-widest flex justify-between">
+              <span>PRODUCTOS EN OPERACION</span>
+              <span>{lineItems.length} L-NEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
+            </div>
+            {lineItems.map((item, idx) => {
+              const prod = products.find(p => p.id === item.productId);
+              const itemErr = lineErrors[item.key];
+              return (
+                <div key={item.key} className={cn(
+                  'flex items-center gap-2 px-3 py-2 font-mono text-[10px] border-b border-[var(--border)]/10 last:border-0',
+                  idx % 2 === 0 ? 'bg-[var(--surface)]' : 'bg-[var(--bg-modal)]/60',
+                  itemErr && 'bg-red-500/10 border-red-500/30'
+                )}>
+                  <span className="opacity-40 text-[8px] w-4 shrink-0">{idx + 1}</span>
+                  <span className="opacity-50 text-[9px] shrink-0">{prod?.code}</span>
+                  <span className="font-bold flex-1 truncate uppercase">{prod?.name} {prod?.color} {prod?.size}</span>
+                  <span className="font-black text-sm shrink-0">{item.qty}</span>
+                  {itemErr && (
+                    <span className="text-[8px] text-red-600 font-bold shrink-0">{itemErr.qty || itemErr.productId}</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeLineItem(item.key)}
+                    className="shrink-0 text-red-400 hover:text-red-700 transition-colors p-0.5"
+                  >
+                    <Minus size={11} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* -- LOCATIONS -- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {(type === 'DISPATCH' || type === 'TRANSFER') && (
+          <FormGroup label="UBICACION ORIGEN" error={errors.fromLocation}>
+            <select
+              value={fromLocation}
+              onChange={e => { setFromLocation(e.target.value); if (type === 'TRANSFER' && e.target.value === toLocation) setToLocation(''); setErrors(prev => ({ ...prev, fromLocation: '' })); }}
+              className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-500/10')}
+            >
+              <option value="">Seleccione Origen...</option>
+              {locations.filter(l => ['ALMACEN-RESERVA GENERAL', 'ALMACEN-STOCK DESPACHO', 'ALMACEN-TEXAJO'].includes(l.name.toUpperCase())).map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </FormGroup>
+        )}
+
+        {(type === 'RECEPTION' || type === 'TRANSFER') && (
+          <FormGroup label="UBICACION DESTINO" error={errors.toLocation}>
+            <select
+              value={toLocation}
+              onChange={e => { setToLocation(e.target.value); setErrors(prev => ({ ...prev, toLocation: '' })); }}
+              className={cn('input-technical', errors.toLocation && 'border-red-600 bg-red-500/10')}
+            >
+              <option value="">Seleccione Destino...</option>
+              {locations.filter(l => ['ALMACEN-RESERVA GENERAL', 'ALMACEN-STOCK DESPACHO', 'ALMACEN-TEXAJO'].includes(l.name.toUpperCase())).map(l => (
+                <option key={l.id} value={l.id} disabled={type === 'TRANSFER' && l.id === fromLocation}>{l.name}</option>
+              ))}
+            </select>
+            {toLocation && (() => {
+              const items = stockLevels.filter(s => s.locationId === toLocation && s.quantity > 0);
+              return items.length > 0 ? (
+                <div className="text-[9px] font-mono border border-[var(--border)]/10 bg-[var(--surface-alt)] p-2 mt-1 max-h-28 overflow-y-auto">
+                  <span className="opacity-60 uppercase tracking-widest font-bold mb-1 block">EN DESTINO:</span>
+                  {items.map((s, i) => (
+                    <div key={i} className="flex justify-between items-center border-b border-[var(--border)]/5 last:border-0 py-0.5">
+                      <span className="font-bold truncate pr-2">{products.find(p => p.id === s.productId)?.name ?? '-'}</span>
+                      <span className="bg-[var(--ink)] text-[var(--ink-inv)] px-1.5 py-0.5">{s.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null;
+            })()}
+          </FormGroup>
+        )}
+
+        {/* -- REFERENCE -- */}
+        <FormGroup label="REFERENCIA / GU-A" error={errors.reference} className={type === 'TRANSFER' ? 'md:col-span-2' : ''}>
+          <input
+            type="text"
+            value={reference}
+            onChange={e => { setReference(e.target.value); setErrors(prev => ({ ...prev, reference: '' })); }}
+            className={cn('input-technical', errors.reference && 'border-red-600 bg-red-500/10')}
+            placeholder="EJ: GR-20914"
+          />
+        </FormGroup>
+
+        {/* -- CONTACT -- */}
+        {(type === 'RECEPTION' || type === 'DISPATCH') && (
+          <FormGroup label={type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE'} className="border-l-4 border-l-[#141414] pl-2">
+            <select value={contactId} onChange={e => setContactId(e.target.value)} className="input-technical">
+              <option value="">{type === 'RECEPTION' ? '-- PROVEEDOR --' : '-- CLIENTE --'}</option>
+              {contacts.filter(c => type === 'RECEPTION' ? c.type === 'SUPPLIER' : c.type === 'CLIENT').map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({c.document})</option>
+              ))}
+            </select>
+            {contactId && (() => {
+              const c = contacts.find(ct => ct.id === contactId);
+              return c?.email ? (
+                <div className="font-mono text-[9px] text-blue-600 font-bold mt-1 truncate">
+                  ? {c.email}
+                </div>
+              ) : null;
+            })()}
+          </FormGroup>
+        )}
+      </div>
+
+      {/* -- SERIAL + PHOTO ROW -- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {activeBrand === 'BOX_PRIME' && (
+          <FormGroup label="NUMERO DE SERIE / LOTE">
+            <input
+              type="text"
+              value={serialNumber}
+              onChange={e => setSerialNumber(e.target.value)}
+              className="input-technical"
+              placeholder="EJ: L-202305-A1"
+            />
+          </FormGroup>
+        )}
+
+        {/* -- PHOTO -- */}
+        <FormGroup label="EVIDENCIA FOTOGR-FICA" className={activeBrand !== 'BOX_PRIME' ? 'md:col-span-2' : ''}>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg-card-alt)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all px-3 py-2 font-mono text-[10px] font-bold uppercase"
+            >
+              <Camera size={13} />
+              {photo ? 'CAMBIAR FOTO' : 'CAPTURAR / ADJUNTAR'}
+            </button>
+            {photo && (
+              <button type="button" onClick={() => { setPhoto(null); if (photoInputRef.current) photoInputRef.current.value = ''; }} className="text-red-500 hover:text-red-700 transition-colors">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handlePhotoCapture}
+            className="hidden"
+          />
+          {photo ? (
+            <div className="mt-2 border border-[var(--border)]/20 bg-[var(--bg-card)] p-1 w-fit">
+              <img src={photo} alt="evidencia" className="max-h-28 max-w-full object-contain" />
+            </div>
+          ) : (
+            <span className="font-mono text-[9px] opacity-40 uppercase tracking-wide mt-1">
+              Opcional · se incluirá en guía y comprobante
+            </span>
+          )}
+        </FormGroup>
+      </div>
+
+      {/* -- SIGNATURE -- */}
+      {(type === 'RECEPTION' || type === 'DISPATCH') && (
+        <FormGroup label="FIRMA DIGITAL" error={errors.signature}>
+          <div className={cn(
+            'border border-[var(--border)] bg-[var(--bg-input)] relative w-full h-32 overflow-hidden',
+            errors.signature && 'border-red-600 shadow-[2px_2px_0_#dc2626]'
+          )}>
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full cursor-crosshair"
+            />
+            <button
+              type="button"
+              onClick={() => padRef.current?.clear()}
+              className="absolute top-2 right-2 text-[9px] font-mono font-bold tracking-widest bg-[var(--ink)] text-white px-2 py-1 opacity-70 hover:opacity-100"
+            >
+              BORRAR
+            </button>
+          </div>
+          <span className="text-[9px] font-mono opacity-50 uppercase mt-1">
+            {type === 'RECEPTION' ? 'Firma de conformidad de recepcion' : 'Firma de conformidad de despacho'}
+          </span>
+        </FormGroup>
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-2">
+        <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
+          {lineItems.length} {lineItems.length === 1 ? 'L-NEA' : 'L-NEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
+        </div>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="w-full sm:w-auto bg-[var(--ink)] border border-[var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] text-[var(--ink-inv)] px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_var(--border)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
+        >
+          EJECUTAR_{type}
+        </button>
+      </div>
+
+      <style>{`
+        .input-technical {
+          width: 100%;
+          background: rgba(255,255,255,.7);
+          border: 1px solid #141414;
+          border-radius: 0;
+          padding: 10px 14px;
+          color: #141414;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          outline: none;
+          transition: all 0.1s;
+        }
+        .input-technical:focus { background: white; box-shadow: 2px 2px 0 0 #141414; }
+      `}</style>
+
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[6px_6px_0_var(--border)] w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-5 py-3 flex justify-between items-center">
+              <div>
+                <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest">CONFIRMAR OPERACION</div>
+                <div className="font-mono font-black text-sm uppercase tracking-widest">{TYPE_META[type].label}</div>
+              </div>
+              <button onClick={() => setShowPreview(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
+            </div>
+            <div className="p-5 flex flex-col gap-4">
+              <table className="w-full text-[10px] font-mono border-collapse">
+                <tbody>
+                  {reference && <PreviewRow label="Referencia" value={reference} />}
+                  {contactId && <PreviewRow label={type === 'RECEPTION' ? 'Proveedor' : 'Cliente'} value={contacts.find(c => c.id === contactId)?.name || contactId} />}
+                  {fromLocation && <PreviewRow label="Origen" value={locations.find(l => l.id === fromLocation)?.name || fromLocation} />}
+                  {toLocation && <PreviewRow label="Destino" value={locations.find(l => l.id === toLocation)?.name || toLocation} />}
+                  <PreviewRow label="Operador" value={currentUser.username} />
+                </tbody>
+              </table>
+              <div className="border border-[var(--border)]">
+                <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest">PRODUCTOS</div>
+                {lineItems.filter(l => l.productId).map((item, i) => {
+                  const prod = products.find(p => p.id === item.productId);
+                  return (
+                    <div key={item.key} className={`flex justify-between items-center px-3 py-2 font-mono text-[10px] ${i % 2 === 0 ? 'bg-[var(--surface)]' : ''}`}>
+                      <div>
+                        <span className="font-bold">{prod?.code}</span>
+                        <span className="opacity-60 ml-2">{prod?.name} {prod?.color} {prod?.size}</span>
+                      </div>
+                      <span className="font-black text-sm ml-4">{item.qty} uds</span>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between px-3 py-2 bg-[var(--bg-sidebar)] border-t border-[var(--border)] font-mono text-[10px] font-bold">
+                  <span>TOTAL</span>
+                  <span>{lineItems.reduce((s, l) => s + (parseInt(l.qty, 10) || 0), 0)} uds</span>
+                </div>
+              </div>
+              {pendingSig && (
+                <div>
+                  <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest mb-1">FIRMA</div>
+                  <img src={pendingSig} alt="Firma" className="max-w-[160px] max-h-[60px] border border-[var(--border)] bg-[var(--bg-input)] p-1" />
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <button onClick={confirmPreview} className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2.5 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all">
+                  CONFIRMAR Y REGISTRAR
+                </button>
+                <button onClick={() => setShowPreview(false)} className="flex-1 border border-[var(--border)] py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
+                  VOLVER
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {guide && <GuideModal guide={guide} onClose={() => setGuide(null)} />}
+
+      {scanningForKey !== null && (
+        <QRScannerModal
+          onClose={() => setScanningForKey(null)}
+          onDetected={(id) => {
+            // QR scan adds a single line with qty 1
+            addLineItems([{ key: `qr_${id}_${Date.now()}`, productId: id, qty: '1' }]);
+            setScanningForKey(null);
+          }}
+        />
+      )}
+    </form>
+  );
+};
+
+// --- WriteOffForm --------------------------------------------------------------
+
+const WriteOffForm: React.FC = () => {
+  const { products, locations, addTransaction, stockLevels, activeBrand, currentUser, contacts, transactions } = useAppContext();
+
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [fromLocation, setFromLocation] = useState('');
+  const [reason, setReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [notes, setNotes] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Devolución al proveedor
+  const [isReturn, setIsReturn] = useState(false);
+  const [returnContactId, setReturnContactId] = useState('');
+  const [returnTxRef, setReturnTxRef] = useState('');
+
+  const suppliers = contacts.filter(c => c.type === 'SUPPLIER');
+  const receptionRefs = useMemo(() => {
+    const seen = new Set<string>();
+    return transactions
+      .filter(tx => tx.type === 'RECEPTION' && tx.status !== 'CANCELLED' && tx.reference?.trim())
+      .filter(tx => { const k = tx.reference!.trim(); if (seen.has(k)) return false; seen.add(k); return true; })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 50);
+  }, [transactions]);
+
+  // Modal de productos de recepción
+  const [showReceptionModal, setShowReceptionModal] = useState(false);
+  const [receptionModalRef, setReceptionModalRef] = useState('');
+  const [defectQtys, setDefectQtys] = useState<Record<string, string>>({});
+  const [modalFilterName, setModalFilterName] = useState<string | null>(null);
+  const [modalFilterColor, setModalFilterColor] = useState<string | null>(null);
+
+  const receptionModalItems = useMemo(() => {
+    if (!receptionModalRef) return [];
+    const txs = transactions.filter(tx =>
+      tx.type === 'RECEPTION' &&
+      tx.status !== 'CANCELLED' &&
+      tx.reference?.trim() === receptionModalRef
+    );
+    // Agrupar por productId sumando cantidades
+    const map = new Map<string, number>();
+    txs.forEach(tx => map.set(tx.productId, (map.get(tx.productId) ?? 0) + tx.quantity));
+    return Array.from(map.entries()).map(([productId, qty]) => ({
+      productId,
+      qty,
+      product: products.find(p => p.id === productId),
+    }));
+  }, [receptionModalRef, transactions, products]);
+
+  const openReceptionModal = (ref: string) => {
+    setReturnTxRef(ref);
+    if (ref) {
+      setReceptionModalRef(ref);
+      setDefectQtys({});
+      setModalFilterName(null);
+      setModalFilterColor(null);
+      setShowReceptionModal(true);
+    } else {
+      setReceptionModalRef('');
+    }
+  };
+
+  const confirmReceptionDefects = () => {
+    const toAdd: LineItem[] = [];
+    receptionModalItems.forEach(({ productId, qty }) => {
+      const raw = defectQtys[productId];
+      const n = parseInt(raw, 10);
+      if (!n || n <= 0) return;
+      const capped = Math.min(n, qty);
+      toAdd.push({ key: `${productId}-${Date.now()}-${Math.random()}`, productId, qty: String(capped) });
+    });
+    if (toAdd.length > 0) {
+      setLineItems(prev => {
+        // Evitar duplicados por productId — si ya existe, reemplazar
+        const existing = prev.filter(l => !toAdd.some(a => a.productId === l.productId));
+        return [...existing, ...toAdd];
+      });
+    }
+    setShowReceptionModal(false);
+  };
+
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const resized = await resizeImage(file);
+    setPhoto(resized);
+  };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (lineItems.length === 0) errs.lines = 'AGREGA_AL_MENOS_UN_PRODUCTO';
+    if (!fromLocation) errs.fromLocation = 'SELECCIONE_UBICACIÓN_ORIGEN';
+    if (!reason) errs.reason = 'SELECCIONE_MOTIVO_DE_BAJA';
+    if (reason === 'Otro motivo' && !customReason.trim()) errs.customReason = 'DESCRIBE_EL_MOTIVO';
+    if (isReturn && !returnContactId) errs.returnContact = 'SELECCIONE_PROVEEDOR';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const effectiveReason = reason === 'Otro motivo' ? customReason.trim() : reason;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+    if (!validate()) return;
+    setShowPreview(true);
+  };
+
+  const executeWriteOff = async () => {
+    setShowPreview(false);
+    const guideNumber = await nextGuideNumber('DISPATCH', activeBrand);
+    const prefix = isReturn ? '[BAJA/DEV]' : '[BAJA]';
+    const refSuffix = isReturn && returnTxRef ? ` · REF:${returnTxRef}` : '';
+    const reference = `${prefix} ${effectiveReason}${notes.trim() ? ' · ' + notes.trim() : ''}${refSuffix}`;
+    try {
+      for (const item of lineItems) {
+        await addTransaction({
+          type: 'DISPATCH',
+          productId: item.productId,
+          quantity: parseInt(item.qty, 10),
+          fromLocationId: fromLocation,
+          reference,
+          contactId: isReturn ? returnContactId : undefined,
+          user: currentUser.username,
+        });
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'ERROR AL REGISTRAR' });
+      return;
+    }
+
+    setLineItems([]);
+    setFromLocation('');
+    setReason('');
+    setCustomReason('');
+    setNotes('');
+    setPhoto(null);
+    setIsReturn(false);
+    setReturnContactId('');
+    setReturnTxRef('');
+    setErrors({});
+    if (photoInputRef.current) photoInputRef.current.value = '';
+
+    setFeedback({ type: 'success', message: `¡BAJA REGISTRADA! GUÍA ${guideNumber}` });
+    setTimeout(() => setFeedback(null), 6000);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6 relative z-10">
+      {feedback && (
+        <div className={cn(
+          'p-3 border font-bold font-mono text-xs uppercase tracking-widest',
+          feedback.type === 'success' ? 'bg-green-500/15 border-green-700 text-green-600' : 'bg-red-500/15 border-red-700 text-red-600'
+        )}>
+          {feedback.message}
+        </div>
+      )}
+
+      <div className="border-b border-red-800/30 pb-3">
+        <h3 className="font-serif italic font-bold text-xs uppercase tracking-widest text-red-600">
+          BAJA / MERMA · REGISTRO DE PRENDAS DADAS DE BAJA
+        </h3>
+        <p className="opacity-60 text-[10px] font-mono mt-1 uppercase tracking-widest font-bold text-red-600">
+          DESCUENTA INVENTARIO · REQUIERE MOTIVO OBLIGATORIO
+        </p>
+      </div>
+
+      {/* Productos */}
+      <div className="flex flex-col gap-3">
+        <label className="font-mono text-[9px] font-bold tracking-[0.2em] uppercase opacity-80">AGREGAR PRODUCTOS A DAR DE BAJA</label>
+        <div className="border border-red-800/30 bg-red-500/10 p-3">
+          <CascadeProductSelector
+            products={products}
+            onAdd={(item) => setLineItems(prev => [...prev, item])}
+            stockLevels={stockLevels}
+            fromLocation={fromLocation}
+            opType="DISPATCH"
+          />
+        </div>
+        {errors.lines && (
+          <span className="font-mono text-[9px] font-bold text-red-700 uppercase border border-red-700 px-1 py-0.5 bg-red-500/15 w-fit tracking-wider">{errors.lines}</span>
+        )}
+        {lineItems.length > 0 && (
+          <div className="flex flex-col gap-0 border border-red-800/30 overflow-hidden">
+            <div className="bg-red-800 text-white px-3 py-1.5 font-mono text-[8px] font-bold uppercase tracking-widest flex justify-between">
+              <span>PRENDAS A DAR DE BAJA</span>
+              <span>{lineItems.length} L-NEAS · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND</span>
+            </div>
+            {lineItems.map((item, idx) => {
+              const prod = products.find(p => p.id === item.productId);
+              return (
+                <div key={item.key} className={cn(
+                  'flex items-center gap-2 px-3 py-2 font-mono text-[10px] border-b border-red-800/10 last:border-0',
+                  idx % 2 === 0 ? 'bg-[var(--surface)]' : 'bg-red-500/10'
+                )}>
+                  <span className="opacity-40 text-[8px] w-4 shrink-0">{idx + 1}</span>
+                  <span className="opacity-50 text-[9px] shrink-0">{prod?.code}</span>
+                  <span className="font-bold flex-1 truncate uppercase">{prod?.name} {prod?.color} {prod?.size}</span>
+                  <span className="font-black text-sm shrink-0">{item.qty}</span>
+                  <button type="button" onClick={() => setLineItems(prev => prev.filter(l => l.key !== item.key))}
+                    className="shrink-0 text-red-400 hover:text-red-700 transition-colors p-0.5">
+                    <Minus size={11} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Ubicacion origen + Motivo */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <FormGroup label="UBICACION ORIGEN (ALMACEN)" error={errors.fromLocation}>
+          <select
+            value={fromLocation}
+            onChange={e => { setFromLocation(e.target.value); setErrors(prev => ({ ...prev, fromLocation: '' })); }}
+            className={cn('input-technical', errors.fromLocation && 'border-red-600 bg-red-500/10')}
+          >
+            <option value="">Seleccione Almacen...</option>
+            {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+          </select>
+        </FormGroup>
+
+        <FormGroup label="MOTIVO DE BAJA" error={errors.reason}>
+          <select
+            value={reason}
+            onChange={e => { setReason(e.target.value); setErrors(prev => ({ ...prev, reason: '', customReason: '' })); }}
+            className={cn('input-technical', errors.reason && 'border-red-600 bg-red-500/10')}
+          >
+            <option value="">- Seleccione motivo -</option>
+            {WRITEOFF_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </FormGroup>
+
+        {reason === 'Otro motivo' && (
+          <FormGroup label="DESCRIBE EL MOTIVO" error={errors.customReason} className="md:col-span-2">
+            <input
+              type="text"
+              value={customReason}
+              onChange={e => { setCustomReason(e.target.value); setErrors(prev => ({ ...prev, customReason: '' })); }}
+              className={cn('input-technical', errors.customReason && 'border-red-600 bg-red-500/10')}
+              placeholder="EJ: PRENDAS VENCIDAS POR PLAZO DE ALMACENAMIENTO"
+            />
+          </FormGroup>
+        )}
+
+        <FormGroup label="OBSERVACIONES ADICIONALES (OPCIONAL)" className="md:col-span-2">
+          <input
+            type="text"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            className="input-technical"
+            placeholder="EJ: LOTE 2024-03, DETECTADO EN REVISI-N MENSUAL"
+          />
+        </FormGroup>
+      </div>
+
+      {/* Devolución al proveedor */}
+      <div className={cn('border p-4 flex flex-col gap-4 transition-colors', isReturn ? 'border-orange-600 bg-orange-500/10' : 'border-[var(--border)]')}>
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <button
+            type="button"
+            onClick={() => { setIsReturn(v => !v); setReturnContactId(''); setReturnTxRef(''); setErrors(prev => ({ ...prev, returnContact: '' })); }}
+            className={cn(
+              'w-10 h-5 relative transition-colors shrink-0',
+              isReturn ? 'bg-orange-600' : 'bg-[var(--border)]'
+            )}
+          >
+            <span className={cn('absolute top-0.5 w-4 h-4 bg-white transition-all', isReturn ? 'left-5' : 'left-0.5')} />
+          </button>
+          <span className="font-mono text-[10px] font-bold uppercase tracking-widest">
+            ¿Aplica devolución al proveedor?
+          </span>
+        </label>
+
+        {isReturn && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormGroup label="PROVEEDOR" error={errors.returnContact}>
+              <select
+                value={returnContactId}
+                onChange={e => { setReturnContactId(e.target.value); setErrors(prev => ({ ...prev, returnContact: '' })); }}
+                className={cn('input-technical', errors.returnContact && 'border-red-600 bg-red-500/10')}
+              >
+                <option value="">- Seleccione proveedor -</option>
+                {suppliers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </FormGroup>
+
+            <FormGroup label="VINCULAR A RECEPCIÓN (OPCIONAL)">
+              <div className="flex gap-2">
+                <select
+                  value={returnTxRef}
+                  onChange={e => openReceptionModal(e.target.value)}
+                  className="input-technical flex-1"
+                >
+                  <option value="">- Sin referencia -</option>
+                  {receptionRefs.map(tx => (
+                    <option key={tx.id} value={tx.reference!}>
+                      {tx.reference} · {tx.date.slice(0, 10)}
+                    </option>
+                  ))}
+                </select>
+                {returnTxRef && (
+                  <button
+                    type="button"
+                    onClick={() => { setReceptionModalRef(returnTxRef); setDefectQtys({}); setShowReceptionModal(true); }}
+                    className="shrink-0 border border-orange-600 text-orange-700 px-3 font-mono text-[9px] font-bold uppercase hover:bg-orange-500/20 transition-colors"
+                  >
+                    VER PRENDAS
+                  </button>
+                )}
+              </div>
+            </FormGroup>
+
+            <p className="md:col-span-2 font-mono text-[9px] text-orange-700 font-bold uppercase tracking-widest border border-orange-600/30 bg-orange-500/10 p-2">
+              SE REGISTRARÁ COMO [BAJA/DEV] — DESCUENTA INVENTARIO Y QUEDA VINCULADO AL PROVEEDOR SELECCIONADO
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Foto evidencia */}
+      <FormGroup label="EVIDENCIA FOTOGRÁFICA (RECOMENDADO)">
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => photoInputRef.current?.click()}
+            className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg-card-alt)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all px-3 py-2 font-mono text-[10px] font-bold uppercase">
+            <Camera size={13} />
+            {photo ? 'CAMBIAR FOTO' : 'CAPTURAR / ADJUNTAR'}
+          </button>
+          {photo && (
+            <button type="button" onClick={() => { setPhoto(null); if (photoInputRef.current) photoInputRef.current.value = ''; }}
+              className="text-red-500 hover:text-red-700 transition-colors">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        <input ref={photoInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoCapture} className="hidden" />
+        {photo && (
+          <div className="mt-2 border border-[var(--border)]/20 bg-[var(--bg-card)] p-1 w-fit">
+            <img src={photo} alt="evidencia" className="max-h-28 max-w-full object-contain" />
+          </div>
+        )}
+      </FormGroup>
+
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mt-2">
+        <div className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
+          {lineItems.length} {lineItems.length === 1 ? 'L-NEA' : 'L-NEAS'} · {lineItems.reduce((s, l) => s + (parseInt(l.qty) || 0), 0)} UND TOTAL
+        </div>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="w-full sm:w-auto bg-red-800 border border-red-800 hover:bg-[var(--bg-input)] hover:text-red-600 text-white px-8 py-3.5 sm:py-3 text-[11px] font-mono tracking-widest font-bold transition-all shadow-[4px_4px_0_#991b1b] active:shadow-none active:translate-y-[4px] active:translate-x-[4px]"
+        >
+          REGISTRAR BAJA
+        </button>
+      </div>
+
+      <style>{`
+        .input-technical {
+          width: 100%;
+          background: rgba(255,255,255,.7);
+          border: 1px solid #141414;
+          border-radius: 0;
+          padding: 10px 14px;
+          color: #141414;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          outline: none;
+          transition: all 0.1s;
+        }
+        .input-technical:focus { background: white; box-shadow: 2px 2px 0 0 #141414; }
+      `}</style>
+
+      {/* Preview modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg)] border-2 border-red-800 shadow-[6px_6px_0_#991b1b] w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="bg-red-800 text-white px-5 py-3 flex justify-between items-center">
+              <div>
+                <div className="font-mono text-[9px] opacity-70 uppercase tracking-widest">CONFIRMAR BAJA / MERMA</div>
+                <div className="font-mono font-black text-sm uppercase tracking-widest">BAJA DE INVENTARIO</div>
+              </div>
+              <button onClick={() => setShowPreview(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
+            </div>
+            <div className="p-5 flex flex-col gap-4">
+              <div className="bg-red-500/10 border border-red-800/30 p-3 font-mono text-[10px] flex flex-col gap-1">
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Tipo</span><span className={cn('font-bold', isReturn ? 'text-orange-700' : '')}>{isReturn ? 'BAJA + DEVOLUCIÓN A PROVEEDOR' : 'BAJA / MERMA'}</span></div>
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Motivo</span><span className="font-bold">{effectiveReason}</span></div>
+                {notes && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Notas</span><span className="font-bold">{notes}</span></div>}
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Almacen</span><span className="font-bold">{locations.find(l => l.id === fromLocation)?.name}</span></div>
+                <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Operador</span><span className="font-bold">{currentUser.username}</span></div>
+                {isReturn && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Proveedor</span><span className="font-bold text-orange-700">{contacts.find(c => c.id === returnContactId)?.name}</span></div>}
+                {isReturn && returnTxRef && <div className="flex gap-3"><span className="opacity-50 uppercase w-24 shrink-0">Ref. recep.</span><span className="font-bold text-orange-700">{returnTxRef}</span></div>}
+              </div>
+              <div className="border border-red-800/30">
+                <div className="bg-red-800 text-white px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-widest">PRENDAS A DAR DE BAJA</div>
+                {lineItems.map((item, i) => {
+                  const prod = products.find(p => p.id === item.productId);
+                  return (
+                    <div key={item.key} className={`flex justify-between items-center px-3 py-2 font-mono text-[10px] ${i % 2 === 0 ? 'bg-[var(--surface)]' : ''}`}>
+                      <div>
+                        <span className="font-bold">{prod?.code}</span>
+                        <span className="opacity-60 ml-2">{prod?.name} {prod?.color} {prod?.size}</span>
+                      </div>
+                      <span className="font-black text-sm ml-4">{item.qty} uds</span>
+                    </div>
+                  );
+                })}
+                <div className="flex justify-between px-3 py-2 bg-red-500/15 border-t border-red-800/20 font-mono text-[10px] font-bold">
+                  <span>TOTAL A DAR DE BAJA</span>
+                  <span>{lineItems.reduce((s, l) => s + (parseInt(l.qty, 10) || 0), 0)} uds</span>
+                </div>
+              </div>
+              <p className="font-mono text-[9px] text-red-600 font-bold uppercase tracking-widest border border-red-800/30 bg-red-500/10 p-2">
+                ESTA ACCION DESCUENTA EL INVENTARIO Y NO SE PUEDE REVERTIR DIRECTAMENTE.
+              </p>
+              <div className="flex gap-2 pt-2">
+                <button onClick={executeWriteOff} className="flex-1 bg-red-800 text-white py-2.5 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_#991b1b] transition-all">
+                  CONFIRMAR BAJA
+                </button>
+                <button onClick={() => setShowPreview(false)} className="flex-1 border border-[var(--border)] py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
+                  VOLVER
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: prendas de la recepción seleccionada */}
+      {showReceptionModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg)] border-2 border-orange-600 shadow-[6px_6px_0_#c2410c] w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="bg-orange-600 text-white px-5 py-3 flex justify-between items-center shrink-0">
+              <div>
+                <div className="font-mono text-[9px] opacity-70 uppercase tracking-widest">RECEPCIÓN VINCULADA</div>
+                <div className="font-mono font-black text-sm uppercase tracking-widest truncate">{receptionModalRef}</div>
+              </div>
+              <button onClick={() => setShowReceptionModal(false)} className="opacity-60 hover:opacity-100 font-mono text-lg leading-none">×</button>
+            </div>
+
+            {/* Filtros: nivel 1 — modelo, nivel 2 — color */}
+            {receptionModalItems.length > 0 && (() => {
+              const names = Array.from(new Set(receptionModalItems.map(i => i.product?.name ?? '').filter(Boolean)));
+              const colorsForName = modalFilterName
+                ? Array.from(new Set(receptionModalItems.filter(i => i.product?.name === modalFilterName).map(i => i.product?.color ?? '').filter(Boolean)))
+                : [];
+              return (
+                <div className="px-4 pt-3 pb-2 shrink-0 border-b border-[var(--border)] flex flex-col gap-2">
+                  {/* Fila modelos */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => { setModalFilterName(null); setModalFilterColor(null); }}
+                      className={cn(
+                        'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
+                        modalFilterName === null
+                          ? 'bg-orange-600 text-white border-orange-600'
+                          : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                      )}
+                    >
+                      TODOS ({receptionModalItems.length})
+                    </button>
+                    {names.map(name => {
+                      const count = receptionModalItems.filter(i => i.product?.name === name).length;
+                      const active = modalFilterName === name;
+                      return (
+                        <button
+                          key={name}
+                          onClick={() => { setModalFilterName(active ? null : name); setModalFilterColor(null); }}
+                          className={cn(
+                            'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
+                            active
+                              ? 'bg-orange-600 text-white border-orange-600'
+                              : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                          )}
+                        >
+                          {name} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Fila colores — solo si hay modelo seleccionado */}
+                  {colorsForName.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pl-1">
+                      <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest self-center mr-1">COLOR:</span>
+                      <button
+                        onClick={() => setModalFilterColor(null)}
+                        className={cn(
+                          'px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider border transition-colors',
+                          modalFilterColor === null
+                            ? 'bg-orange-500 text-white border-orange-500'
+                            : 'border-[var(--border)] opacity-50 hover:opacity-100'
+                        )}
+                      >
+                        TODOS
+                      </button>
+                      {colorsForName.map(color => {
+                        const active = modalFilterColor === color;
+                        return (
+                          <button
+                            key={color}
+                            onClick={() => setModalFilterColor(active ? null : color)}
+                            className={cn(
+                              'px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider border transition-colors',
+                              active
+                                ? 'bg-orange-500 text-white border-orange-500'
+                                : 'border-[var(--border)] opacity-50 hover:opacity-100'
+                            )}
+                          >
+                            {color}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <div className="p-4 flex flex-col gap-1 overflow-y-auto flex-1">
+              <p className="font-mono text-[9px] opacity-60 uppercase tracking-widest mb-2">
+                INDICA CUÁNTAS PRENDAS ESTÁN DEFECTUOSAS POR CADA MODELO
+              </p>
+              {receptionModalItems.length === 0 ? (
+                <p className="font-mono text-[10px] opacity-50 text-center py-6">No se encontraron productos en esta recepción</p>
+              ) : (
+                receptionModalItems
+                .filter(({ product }) => {
+                  if (modalFilterName && product?.name !== modalFilterName) return false;
+                  if (modalFilterColor && product?.color !== modalFilterColor) return false;
+                  return true;
+                })
+                .map(({ productId, qty, product }) => {
+                  const val = defectQtys[productId] ?? '';
+                  const n = parseInt(val, 10);
+                  const invalid = val !== '' && (isNaN(n) || n < 0 || n > qty);
+                  return (
+                    <div key={productId} className="flex items-center gap-3 px-3 py-2.5 border border-[var(--border)] bg-[var(--surface)]">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-mono text-[10px] font-black uppercase truncate">{product?.name} {product?.color} {product?.size}</div>
+                        <div className="font-mono text-[9px] opacity-50">{product?.code} · Recepcionado: {qty} uds</div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <input
+                          type="number"
+                          min={0}
+                          max={qty}
+                          value={val}
+                          onChange={e => setDefectQtys(prev => ({ ...prev, [productId]: e.target.value }))}
+                          placeholder="0"
+                          className={cn(
+                            'w-16 text-center font-mono text-sm font-black border px-2 py-1 outline-none',
+                            invalid ? 'border-red-600 bg-red-500/10 text-red-700' : 'border-orange-600 bg-orange-500/10'
+                          )}
+                        />
+                        <span className="font-mono text-[9px] opacity-40">/ {qty}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex gap-2 p-4 border-t border-[var(--border)] shrink-0">
+              <button
+                onClick={confirmReceptionDefects}
+                disabled={receptionModalItems.length === 0}
+                className="flex-1 bg-orange-600 text-white py-2.5 text-xs font-bold font-mono uppercase hover:bg-orange-700 transition-colors disabled:opacity-40"
+              >
+                AGREGAR DEFECTUOSAS A LA BAJA
+              </button>
+              <button
+                onClick={() => setShowReceptionModal(false)}
+                className="flex-1 border border-[var(--border)] py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]"
+              >
+                CANCELAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </form>
+  );
+};
+
+// --- QR Scanner ----------------------------------------------------------------
+
+
+
+
+
+const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: string) => void }> = ({ onClose, onDetected }) => {
+  const { products, activeBrand } = useAppContext();
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const controlsRef = useRef<IScannerControls | null>(null);
+  const [status, setStatus] = useState<'starting' | 'scanning' | 'error'>('starting');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const reader = new BrowserQRCodeReader();
+
+    const start = async () => {
+      if (!videoRef.current) return;
+      try {
+        controlsRef.current = await reader.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (result) => {
+            if (!active || !result) return;
+            active = false;
+            controlsRef.current?.stop();
+                        try {
+              const data = JSON.parse(result.getText());
+              if (data?.id) {
+                // Valida que el producto del QR pertenezca a la marca activa.
+                // Si no, la línea se vería vacía / "sin datos" al agregarse.
+                const product = products.find(p => p.id === data.id);
+                if (product) {
+                  onDetected(data.id);
+                } else {
+                  setErrorMsg(`QR de un producto que no existe en ${activeBrand.replace('_', ' ')}. Usa un QR de esta marca.`);
+                  setStatus('error');
+                  active = true;
+                }
+              } else {
+                setErrorMsg('QR no corresponde a un producto valido.');
+                setStatus('error');
+                active = true;
+              }
+            } catch {
+              setErrorMsg('QR no reconocido. Usa un QR generado por Etiquetas.');
+              setStatus('error');
+              active = true;
+            }
+          },
+        );
+        if (active) setStatus('scanning');
+      } catch (err: unknown) {
+        const e = err as Error;
+        setErrorMsg(e?.message?.toLowerCase().includes('permission') ? 'Sin acceso a c-mara.' : 'No se pudo iniciar la c-mara.');
+        setStatus('error');
+      }
+    };
+
+    start();
+    return () => { active = false; controlsRef.current?.stop(); };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[8px_8px_0_var(--border)] w-full max-w-sm flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="border-b-2 border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ScanLine size={15} />
+            <span className="font-mono text-[10px] font-bold tracking-widest uppercase">ESCANEAR QR PRODUCTO</span>
+          </div>
+          <button onClick={onClose} className="opacity-60 hover:opacity-100"><X size={15} /></button>
+        </div>
+        <div className="relative bg-black">
+          <video ref={videoRef} className="w-full" style={{ minHeight: 280 }} />
+          {status === 'starting' && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+              <span className="font-mono text-[10px] text-white tracking-widest animate-pulse uppercase">INICIANDO C-MARA...</span>
+            </div>
+          )}
+        </div>
+        <div className="px-4 py-3 border-t border-[var(--border)]/20">
+          {status === 'scanning' && <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-green-700 text-center animate-pulse">APUNTA AL QR DEL PRODUCTO</p>}
+          {status === 'error' && (
+            <div className="flex flex-col gap-2">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-red-700 text-center">{errorMsg}</p>
+              <button onClick={onClose} className="w-full border border-[var(--border)] bg-[var(--ink)] text-[var(--ink-inv)] py-2 font-mono text-[10px] font-bold tracking-widest uppercase">CERRAR</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Bulletin Modal -------------------------------------------------------------
+
+interface BulletinData {
+  type: TransactionType;
+  reference: string;
+  date: string;
+  rawDate: string;
+  operator: string;
+  brand: string;
+  txIds: string[];
+  items: { productName: string; productCode: string; quantity: number; variant?: string; serialNumber?: string }[];
+  fromLocation?: string;
+  toLocation?: string;
+  contact?: string;
+  signature?: string;
+  photo?: string;
+  labelOverride?: string;
+  colorOverride?: string;
+}
+
+function buildBulletinHTML(p: BulletinData): string {
+  const TYPE_LABEL: Record<TransactionType, string> = { RECEPTION: 'RECEPCIÓN', DISPATCH: 'DESPACHO', TRANSFER: 'TRASLADO' };
+  const TYPE_COLOR: Record<TransactionType, string> = { RECEPTION: '#16a34a', DISPATCH: '#dc2626', TRANSFER: '#0891b2' };
+  const label = p.labelOverride ?? TYPE_LABEL[p.type];
+  const color = p.colorOverride ?? TYPE_COLOR[p.type];
+  const brandDisplay = p.brand.replace('_', ' ');
+  const totalQty = p.items.reduce((s, i) => s + i.quantity, 0);
+  const contactLabel = p.type === 'RECEPTION' ? 'Proveedor' : 'Cliente';
+
+  const row = (lbl: string, val: string) =>
+    `<tr>
+      <td style="padding:8px 0;font-size:11px;letter-spacing:.15em;opacity:.5;text-transform:uppercase;font-weight:700;border-bottom:1px solid rgba(20,20,20,.1);width:40%">${lbl}</td>
+      <td style="padding:8px 0;font-size:11px;font-weight:900;text-transform:uppercase;text-align:right;border-bottom:1px solid rgba(20,20,20,.1)">${val}</td>
+    </tr>`;
+
+  const itemsHTML = p.items.length === 1
+    ? `<div style="border:2px solid #141414;padding:16px;margin:20px 0;background:#fff">
+        <div style="font-size:9px;letter-spacing:.25em;opacity:.4;text-transform:uppercase;margin-bottom:4px">${p.items[0].productCode}</div>
+        <div style="font-size:15px;font-weight:900;text-transform:uppercase;letter-spacing:.05em">${p.items[0].productName}</div>
+        ${p.items[0].variant ? `<div style="font-size:9px;opacity:.5;margin-top:4px;text-transform:uppercase;letter-spacing:.1em">${p.items[0].variant}</div>` : ''}
+        ${p.items[0].serialNumber ? `<div style="font-size:9px;opacity:.5;margin-top:2px">S/N: ${p.items[0].serialNumber}</div>` : ''}
+        <div style="display:inline-block;background:#141414;color:#E4E3E0;font-size:22px;font-weight:900;padding:8px 18px;margin-top:12px;letter-spacing:.05em">${p.items[0].quantity} UND</div>
+      </div>`
+    : `<div style="margin:20px 0">
+        <div style="font-size:9px;letter-spacing:.2em;opacity:.4;text-transform:uppercase;margin-bottom:8px;font-weight:700">PRODUCTOS — ${p.items.length} LÍNEAS</div>
+        <table style="width:100%;border-collapse:collapse;background:#fff;border:2px solid #141414">
+          <thead><tr style="background:#141414;color:#E4E3E0">
+            <td style="padding:7px 10px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Código</td>
+            <td style="padding:7px 10px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase">Producto</td>
+            <td style="padding:7px 10px;font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;text-align:right">Cant.</td>
+          </tr></thead>
+          <tbody>${p.items.map(it => `<tr style="border-bottom:1px solid #eee">
+            <td style="padding:6px 10px;font-size:9px;font-weight:700;opacity:.5">${it.productCode}</td>
+            <td style="padding:6px 10px;font-size:11px;font-weight:900;text-transform:uppercase">
+              ${it.productName}
+              ${it.variant ? `<div style="font-size:9px;font-weight:400;opacity:.55;text-transform:uppercase;letter-spacing:.08em;margin-top:2px">${it.variant}</div>` : ''}
+              ${it.serialNumber ? `<div style="font-size:9px;font-weight:400;opacity:.45;margin-top:1px">S/N: ${it.serialNumber}</div>` : ''}
+            </td>
+            <td style="padding:6px 10px;font-size:11px;font-weight:900;text-align:right">${it.quantity}</td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr style="background:#f5f5f5">
+            <td colspan="2" style="padding:8px 10px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em">TOTAL UNIDADES</td>
+            <td style="padding:8px 10px;font-size:14px;font-weight:900;text-align:right">${totalQty}</td>
+          </tr></tfoot>
+        </table>
+      </div>`;
+
+  const sigHTML = p.signature
+    ? `<div style="margin-top:16px;padding-top:16px;border-top:1px dashed rgba(20,20,20,.3)">
+        <div style="font-size:9px;letter-spacing:.2em;opacity:.5;text-transform:uppercase;margin-bottom:8px;font-weight:700">FIRMA DE CONFORMIDAD</div>
+        <img src="${p.signature}" alt="Firma" style="max-width:200px;max-height:80px;border:1px solid #141414;padding:4px;background:#fff;display:block">
+      </div>` : '';
+
+  const photoHTML = p.photo
+    ? `<div style="margin-top:16px;padding-top:16px;border-top:1px dashed rgba(20,20,20,.3)">
+        <div style="font-size:9px;letter-spacing:.2em;opacity:.5;text-transform:uppercase;margin-bottom:8px;font-weight:700">EVIDENCIA FOTOGRÁFICA</div>
+        <img src="${p.photo}" alt="Evidencia" style="max-width:100%;max-height:240px;border:1px solid #141414;padding:4px;background:#fff;display:block">
+      </div>` : '';
+
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<style>*{box-sizing:border-box}body{margin:0;padding:24px 32px;background:#f0efec;font-family:'Courier New',monospace}</style>
+</head><body>
+  <div style="max-width:680px;margin:0 auto;background:#E4E3E0;border:2px solid #141414;box-shadow:6px 6px 0 #141414">
+    <div style="background:#141414;color:#E4E3E0;padding:28px 36px">
+      <div style="font-size:9px;letter-spacing:.35em;opacity:.5;text-transform:uppercase">${brandDisplay} — SISTEMA DE ALMACÉN</div>
+      <div style="display:inline-block;background:${color};color:#fff;padding:6px 16px;font-size:10px;font-weight:900;letter-spacing:.3em;margin-top:14px;text-transform:uppercase">${label}</div>
+      <div style="font-size:28px;font-weight:900;letter-spacing:.08em;margin-top:10px;text-transform:uppercase">${p.reference}</div>
+      <div style="font-size:10px;opacity:.4;margin-top:4px;letter-spacing:.15em">${p.date}</div>
+    </div>
+    <div style="padding:28px 36px">
+      <table style="width:100%;border-collapse:collapse">
+        ${row('Operador', p.operator)}
+        ${p.contact ? row(contactLabel, p.contact) : ''}
+        ${p.fromLocation ? row('Origen', p.fromLocation) : ''}
+        ${p.toLocation ? row('Destino', p.toLocation) : ''}
+      </table>
+      ${itemsHTML}${sigHTML}${photoHTML}
+    </div>
+    <div style="background:#D4D3D0;border-top:1px solid #141414;padding:12px 36px;font-size:9px;opacity:.45;letter-spacing:.15em;text-transform:uppercase">
+      LogixZazu v3.0 — Comprobante generado automáticamente // ${p.date}
+    </div>
+  </div>
+</body></html>`;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const 
