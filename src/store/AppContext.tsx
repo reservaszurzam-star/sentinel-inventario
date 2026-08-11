@@ -61,6 +61,7 @@ interface AppContextType {
   hardDeleteTransaction: (txId: string) => Promise<void>;
   hardDeleteTransactions: (txIds: string[]) => Promise<void>;
   updateTransaction: (txId: string, updates: { reference?: string; contactId?: string | null; date?: string }) => Promise<void>;
+  confirmTransaction: (txId: string, isConfirmed: boolean) => Promise<void>;
   clearAllTransactions: () => Promise<void>;
   receivePurchaseOrder: (po: PurchaseOrder, receiveQtys: Record<number, number>) => Promise<void>;
   dispatchRequirement: (po: PurchaseOrder, receiveQtys: Record<number, number>, fromLocationIds: Record<number, string>) => Promise<void>;
@@ -345,10 +346,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (error) throw new Error(error.message);
     setTransactions(prev => prev.map(t => t.id === txId ? {
       ...t,
-      ...(updates.reference !== undefined ? { reference: updates.reference } : {}),
-      ...('contactId' in updates ? { contactId: updates.contactId ?? undefined } : {}),
-      ...(updates.date !== undefined ? { date: updates.date } : {}),
+      reference: updates.reference !== undefined ? updates.reference : t.reference,
+      contactId: updates.contactId !== undefined ? updates.contactId : t.contactId,
+      date: updates.date !== undefined ? updates.date : t.date,
     } : t));
+  };
+
+  const confirmTransaction = async (txId: string, isConfirmed: boolean): Promise<void> => {
+    const { error } = await supabase.from('transactions').update({ is_confirmed: isConfirmed }).eq('id', txId);
+    if (error) {
+      console.error('confirmTransaction error:', error);
+      throw new Error(error.message);
+    }
+    setTransactions(prev => prev.map(t => t.id === txId ? { ...t, isConfirmed } : t));
   };
 
   const hardDeleteTransaction = async (txId: string): Promise<void> => {
@@ -772,7 +782,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         products, locations, transactions, stockLevels, productLocations, getProductLocation, assignProductLocation,
     contacts, currentUser, viewAsRole, setViewAsRole, effectiveRole, users, purchaseOrders, adjustments,
     reservations, addReservation, updateReservationStatus, updateReservation, deleteReservation,
-    addTransaction, deleteTransaction, hardDeleteTransaction, hardDeleteTransactions, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
+    addTransaction, deleteTransaction, hardDeleteTransaction, hardDeleteTransactions, updateTransaction, confirmTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
     addLocation, updateLocation, deleteLocation, deleteStockLevel,
     addContact, updateContact, deleteContact, setCurrentUser,
     addUser, updateUser, deleteUser,

@@ -67,52 +67,258 @@ export function QRs() {
     return `${baseUrl}#/q/${safeModel}?b=${safeBrand}`;
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const doRefresh = () => {
     setRefreshing(true);
-    // AppContext uses realtime subscriptions, so data stays fresh automatically.
-    // This just gives visual feedback to the user.
     setTimeout(() => setRefreshing(false), 600);
   };
 
-  // Holds refs to each printable QR card so we can print a single one.
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // Print a single model's QR as a physical label (uses the already-rendered QR svg
   // from that card so we don't need to re-generate it in a blank window).
   const printOne = (modelName: string) => {
+    const m = qrModels.find(x => x.name === modelName);
+    if (!m) return;
+    
     const card = cardRefs.current.get(modelName);
     if (!card) return;
-    const content = card.cloneNode(true) as HTMLDivElement;
-    // Remove interactive bits and force max size for the label
-    content.querySelector('.no-print-label')?.remove();
-    content.style.all = 'revert';
-    content.style.width = '200px';
-    content.style.margin = '0 auto';
-    content.style.fontFamily = "'Courier New', monospace";
-    content.style.textAlign = 'center';
+    
+    // Extract the SVG from the rendered card
+    const svgElement = card.querySelector('svg');
+    const svgHtml = svgElement ? svgElement.outerHTML : '';
 
     const win = window.open('', '_blank');
     if (!win) return;
-    const html = content.innerHTML;
     win.document.write(`
-      <html><head><title>QR — ${modelName}</title>
+      <html><head><title>Impresión QR — ${modelName}</title>
       <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:'Courier New', monospace; background:#fff; display:flex; justify-content:center; padding:24px; }
-        .wrap { border:2px solid #141414; padding:16px; display:flex; flex-direction:column; align-items:center; gap:6px; width:220px; text-align:center; }
-        svg { width:150px !important; height:150px !important; }
-        @media print { body { padding:0; } }
+        body { 
+          font-family: system-ui, -apple-system, sans-serif; 
+          background: #fff; color: #000; 
+          padding: 40px; 
+          display: flex; 
+          justify-content: center; 
+        }
+        .a4-page {
+          width: 210mm; /* A4 width */
+          min-height: 297mm; /* A4 height */
+          border: 4px solid #000;
+          padding: 40px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 40px;
+          width: 100%;
+          border-bottom: 4px solid #000;
+          padding-bottom: 20px;
+        }
+        .brand { 
+          font-size: 24px; 
+          font-weight: 900; 
+          text-transform: uppercase; 
+          letter-spacing: 4px; 
+          margin-bottom: 10px;
+          color: #444;
+        }
+        .model { 
+          font-size: 64px; 
+          font-weight: 900; 
+          text-align: center; 
+          line-height: 1.1; 
+          text-transform: uppercase; 
+        }
+        .qr-box { 
+          padding: 20px; 
+          border: 4px solid #000; 
+          border-radius: 12px; 
+          margin-bottom: 40px;
+          background: #fff;
+        }
+        .qr-box svg { 
+          width: 350px !important; 
+          height: 350px !important; 
+          display: block; 
+        }
+        .details-box {
+          border: 4px solid #000;
+          width: 100%;
+          padding: 20px;
+          font-size: 24px;
+          font-weight: 700;
+          display: flex;
+          justify-content: space-between;
+          text-transform: uppercase;
+        }
+        .info-label {
+          font-size: 16px;
+          color: #666;
+          display: block;
+          margin-bottom: 4px;
+        }
+        @media print { 
+          @page { size: A4 portrait; margin: 0; }
+          body { padding: 0; } 
+          .a4-page { border: none; min-height: 100vh; }
+        }
       </style></head><body>
-      <div class="wrap">${html}</div>
+        <div class="a4-page">
+          <div class="header">
+            <div class="brand">${activeBrand.replace('_', ' ')}</div>
+            <div class="model">${m.name}</div>
+          </div>
+          
+          <div class="qr-box">${svgHtml}</div>
+          
+          <div class="details-box">
+            <div>
+              <span class="info-label">Variantes registradas</span>
+              ${m.variants} variante${m.variants !== 1 ? 's' : ''}
+            </div>
+            <div style="text-align: right">
+              <span class="info-label">Escanear para</span>
+              Ver inventario en vivo
+            </div>
+          </div>
+        </div>
       </body></html>
     `);
     win.document.close();
     win.focus();
     setTimeout(() => { win.print(); win.close(); }, 400);
+  };
+
+  const handlePrintAll = () => {
+    // Generate A4 pages for all models
+    const win = window.open('', '_blank');
+    if (!win) return;
+    
+    let allPagesHtml = '';
+    
+    qrModels.forEach(m => {
+      const card = cardRefs.current.get(m.name);
+      if (!card) return;
+      
+      const svgElement = card.querySelector('svg');
+      const svgHtml = svgElement ? svgElement.outerHTML : '';
+      
+      allPagesHtml += `
+        <div class="a4-page">
+          <div class="header">
+            <div class="brand">${activeBrand.replace('_', ' ')}</div>
+            <div class="model">${m.name}</div>
+          </div>
+          
+          <div class="qr-box">${svgHtml}</div>
+          
+          <div class="details-box">
+            <div>
+              <span class="info-label">Variantes registradas</span>
+              ${m.variants} variante${m.variants !== 1 ? 's' : ''}
+            </div>
+            <div style="text-align: right">
+              <span class="info-label">Escanear para</span>
+              Ver inventario en vivo
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    win.document.write(`
+      <html><head><title>Impresión de todos los QRs</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { 
+          font-family: system-ui, -apple-system, sans-serif; 
+          background: #f0f0f0; color: #000; 
+          display: flex; 
+          flex-direction: column;
+          align-items: center; 
+          gap: 20px;
+          padding: 20px;
+        }
+        .a4-page {
+          width: 210mm;
+          height: 297mm;
+          border: 4px solid #000;
+          padding: 40px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          background: white;
+          page-break-after: always;
+        }
+        .a4-page:last-child {
+          page-break-after: auto;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 40px;
+          width: 100%;
+          border-bottom: 4px solid #000;
+          padding-bottom: 20px;
+        }
+        .brand { 
+          font-size: 24px; 
+          font-weight: 900; 
+          text-transform: uppercase; 
+          letter-spacing: 4px; 
+          margin-bottom: 10px;
+          color: #444;
+        }
+        .model { 
+          font-size: 64px; 
+          font-weight: 900; 
+          text-align: center; 
+          line-height: 1.1; 
+          text-transform: uppercase; 
+        }
+        .qr-box { 
+          padding: 20px; 
+          border: 4px solid #000; 
+          border-radius: 12px; 
+          margin-bottom: 40px;
+          background: #fff;
+        }
+        .qr-box svg { 
+          width: 350px !important; 
+          height: 350px !important; 
+          display: block; 
+        }
+        .details-box {
+          border: 4px solid #000;
+          width: 100%;
+          padding: 20px;
+          font-size: 24px;
+          font-weight: 700;
+          display: flex;
+          justify-content: space-between;
+          text-transform: uppercase;
+        }
+        .info-label {
+          font-size: 16px;
+          color: #666;
+          display: block;
+          margin-bottom: 4px;
+        }
+        @media print { 
+          @page { size: A4 portrait; margin: 0; }
+          body { padding: 0; background: white; } 
+          .a4-page { border: none; height: 100vh; }
+        }
+      </style></head><body>
+        ${allPagesHtml}
+      </body></html>
+    `);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); win.close(); }, 800);
   };
 
   return (
@@ -134,11 +340,11 @@ export function QRs() {
             ACTUALIZAR
           </button>
           <button 
-            onClick={handlePrint}
+            onClick={handlePrintAll}
             className="flex items-center gap-2 px-3 py-2 bg-[var(--accent)] text-[var(--bg)] rounded font-mono text-xs tracking-widest font-bold hover:brightness-110 transition-all"
           >
             <Printer size={14} />
-            IMPRIMIR TODOS
+            IMPRIMIR TODOS (A4)
           </button>
         </div>
       </div>
@@ -200,11 +406,11 @@ export function QRs() {
                 </h3>
 
                 {/* QR — opens the StockViewer for the model */}
-                <div className="bg-white p-1.5 rounded mb-2">
+                <div className="bg-white p-1.5 rounded mb-2 border border-black/5">
                   <QRCodeSVG
                     value={getQRValue(m.name)}
                     size={120}
-                    level="M"
+                    level="Q"
                     includeMargin={false}
                   />
                 </div>

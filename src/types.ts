@@ -39,6 +39,7 @@ export type Transaction = {
   signature?: string;
   contactId?: string;
   serialNumber?: string;
+  isConfirmed?: boolean;
 };
 
 export type StockLevel = {

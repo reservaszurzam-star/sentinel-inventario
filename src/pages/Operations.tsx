@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { useAppContext } from '../store/AppContext';
+import { Confirmations } from './Confirmations';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { TutorialModal, OPERATIONS_TUTORIAL_STEPS } from '../components/TutorialModal';
 import {
@@ -7,7 +8,7 @@ import {
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
   BarChart2, MapPin, Package, TrendingUp, TrendingDown, ShieldOff,
   FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search, Mail, CalendarDays,
-  MoreVertical,
+  MoreVertical, MessageSquare, ExternalLink, RefreshCw, Eye, History, Settings, Calendar, User, PackageSearch, LogOut, CheckSquare
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
@@ -399,7 +400,14 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' | '
     return Array.from(map.entries());
   }, [bulletinGroups]);
 
+  const [confirmBulletinData, setConfirmBulletinData] = useState<BulletinGroup | null>(null);
+
   const openBulletin = (g: BulletinGroup) => {
+    if (g.type === 'RECEPTION' && mode === 'ops') {
+      setConfirmBulletinData(g);
+      return;
+    }
+
     const isReq = mode === 'requerimientos';
     setBulletinData({
       type: g.type,
@@ -430,6 +438,14 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' | '
   return (
     <div className="flex flex-col gap-4">
       {bulletinData && <BulletinModal data={bulletinData} onClose={() => setBulletinData(null)} />}
+      
+      {confirmBulletinData && (
+        <Confirmations 
+          txIds={confirmBulletinData.txIds} 
+          reference={confirmBulletinData.reference} 
+          onClose={() => setConfirmBulletinData(null)} 
+        />
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
@@ -534,6 +550,7 @@ export const BulletinsTab: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho' | '
 // --- Main Page -----------------------------------------------------------------
 
 export const Operations: React.FC = () => {
+  const { effectiveRole } = useAppContext();
   const [activeOpt, setActiveOpt] = useState<ActiveOp>('RECEPTION' as ActiveOp);
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -608,17 +625,33 @@ export const Operations: React.FC = () => {
           <BarChart2 size={14} />
           REPORTES
         </button>
+        
+        {effectiveRole === 'ADMIN_GENERAL' && (
+          <button
+            onClick={() => setMainTab('bulletins')}
+            className={cn(
+              'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
+              mainTab === 'bulletins'
+                ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+                : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
+            )}
+          >
+            <Mail size={14} />
+            COMPROBANTES
+          </button>
+        )}
+
         <button
-          onClick={() => setMainTab('bulletins')}
+          onClick={() => setMainTab('confirmations')}
           className={cn(
             'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
-            mainTab === 'bulletins'
+            mainTab === 'confirmations'
               ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
               : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
           )}
         >
-          <Mail size={14} />
-          COMPROBANTES
+          <CheckSquare size={14} />
+          CONFIRMACIÓN
         </button>
       </div>
 
@@ -664,8 +697,14 @@ export const Operations: React.FC = () => {
         </div>
       )}
 
-      {mainTab === 'bulletins' && (
+      {effectiveRole === 'ADMIN_GENERAL' && mainTab === 'bulletins' && (
         <BulletinsTab mode="ops" />
+      )}
+
+      {mainTab === 'confirmations' && (
+        <div className="border border-[var(--border)] bg-[var(--bg-card)] p-5 h-full">
+          <Confirmations />
+        </div>
       )}
     </div>
   );

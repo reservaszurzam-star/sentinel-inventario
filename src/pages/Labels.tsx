@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { QRCodeSVG } from 'qrcode.react';
@@ -144,20 +144,17 @@ export const Labels: React.FC = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     printWindow.document.write(`
-      <html><head><title>Etiquetas — ${activeBrand}</title>
+      <html><head><title>Impresión de Etiquetas — ${activeBrand}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Courier New', monospace; background: white; }
-        .grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; }
-        .label { border: 1px solid #141414; padding: 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; width: ${LABEL_W[labelSize]}px; }
-        .brand { font-size: 7px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-        .code { font-size: 8px; font-weight: bold; text-transform: uppercase; }
-        .name { font-size: 7px; text-align: center; opacity: 0.8; }
-        .attr { font-size: 7px; opacity: 0.6; }
-        .price { font-size: 9px; font-weight: bold; }
-        .stock { font-size: 7px; background: #141414; color: #E4E3E0; padding: 1px 4px; }
-        svg { max-width: 100%; }
-        @media print { body { padding: 0; } .grid { gap: 4px; padding: 8px; } }
+        body { font-family: system-ui, -apple-system, sans-serif; background: white; color: black; }
+        .grid { display: flex; flex-wrap: wrap; gap: 12px; padding: 20px; justify-content: center; }
+        @media print { 
+          body { padding: 0; } 
+          .grid { gap: 8px; padding: 0; justify-content: flex-start; }
+          /* Optional: For continuous thermal rolls, you can uncomment page-break-inside */
+          /* .label-wrapper { page-break-inside: avoid; margin-bottom: 2mm; } */
+        }
       </style></head><body>
       <div class="grid">${content.innerHTML}</div>
       </body></html>
@@ -175,27 +172,54 @@ export const Labels: React.FC = () => {
       const qrValue = getQRValue({ id });
       const barcodeValue = p.code;
       return (
-        <div key={id} className="border border-[var(--border)] p-2 flex flex-col items-center gap-1 bg-[var(--bg-input)]" style={{ width: LABEL_W[labelSize] }}>
-          <div className="font-mono text-[7px] font-bold uppercase tracking-widest opacity-60">{activeBrand.replace('_', ' ')}</div>
+        <div key={id} className="label-wrapper" style={{ 
+          width: LABEL_W[labelSize],
+          border: '2px solid #000',
+          borderRadius: '8px',
+          padding: '12px 8px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          backgroundColor: '#fff',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          color: '#000',
+          boxShadow: '2px 2px 0px rgba(0,0,0,0.1)' /* Only visible on screen, print ignores usually */
+        }}>
+          <div style={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
+            {activeBrand.replace('_', ' ')}
+          </div>
+          
           {(labelStyle === 'qr' || labelStyle === 'both') && (
-            <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} />
-          )}
-          {(labelStyle === 'barcode' || labelStyle === 'both') && (
-            <div className="flex flex-col items-center gap-0.5">
-              <Barcode value={barcodeValue} height={BAR_H[labelSize]} />
-              <div className="font-mono text-[7px] tracking-wider opacity-70">{barcodeValue}</div>
+            <div style={{ padding: '4px', border: '1px solid #eee', borderRadius: '4px', marginBottom: '8px' }}>
+              <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} level="Q" />
             </div>
           )}
-          <div className="font-mono text-[8px] font-black">{p.code}</div>
-          <div className="font-mono text-[7px] text-center leading-tight">{p.name}</div>
-          {(p.color || p.size) && <div className="font-mono text-[7px] opacity-60">{[p.color, p.size].filter(Boolean).join(' / ')}</div>}
-          {showCategory && p.category && <div className="font-mono text-[7px] opacity-50 uppercase">{p.category}</div>}
+
+          {(labelStyle === 'barcode' || labelStyle === 'both') && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginBottom: '8px' }}>
+              <Barcode value={barcodeValue} height={BAR_H[labelSize]} />
+              <div style={{ fontSize: '8px', letterSpacing: '1px', opacity: 0.8 }}>{barcodeValue}</div>
+            </div>
+          )}
+
+          <div style={{ fontSize: '13px', fontWeight: '900', textAlign: 'center', lineHeight: '1.1' }}>{p.code}</div>
+          <div style={{ fontSize: '10px', textAlign: 'center', lineHeight: '1.2', marginTop: '4px', opacity: 0.9 }}>{p.name}</div>
+          
+          {(p.color || p.size) && (
+            <div style={{ fontSize: '9px', fontWeight: '700', marginTop: '4px', backgroundColor: '#f0f0f0', padding: '2px 6px', borderRadius: '4px' }}>
+              {[p.color, p.size].filter(Boolean).join(' / ')}
+            </div>
+          )}
+          
+          {showCategory && p.category && (
+            <div style={{ fontSize: '8px', opacity: 0.6, textTransform: 'uppercase', marginTop: '4px' }}>{p.category}</div>
+          )}
+          
           {showPrice && p.sellPrice != null && (
-            <div className="font-mono text-[9px] font-black border border-[var(--border)] px-1">
+            <div style={{ fontSize: '12px', fontWeight: '900', marginTop: '6px', borderTop: '1px dashed #ccc', paddingTop: '4px', width: '100%', textAlign: 'center' }}>
               S/ {p.sellPrice.toFixed(2)}
             </div>
           )}
-          {showStock && stock > 0 && <div className="font-mono text-[7px] bg-[var(--ink)] text-[var(--ink-inv)] px-1.5 py-0.5">STOCK: {stock}</div>}
         </div>
       );
     } else {
@@ -203,19 +227,39 @@ export const Labels: React.FC = () => {
       if (!l) return null;
       const qrValue = getQRValue({ id });
       return (
-        <div key={id} className="border border-[var(--border)] p-2 flex flex-col items-center gap-1 bg-[var(--bg-input)]" style={{ width: LABEL_W[labelSize] }}>
-          <div className="font-mono text-[7px] font-bold uppercase tracking-widest opacity-60">{activeBrand.replace('_', ' ')}</div>
+        <div key={id} className="label-wrapper" style={{ 
+          width: LABEL_W[labelSize],
+          border: '2px solid #000',
+          borderRadius: '8px',
+          padding: '12px 8px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          backgroundColor: '#fff',
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          color: '#000'
+        }}>
+          <div style={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
+            {activeBrand.replace('_', ' ')}
+          </div>
+          
           {(labelStyle === 'qr' || labelStyle === 'both') && (
-            <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} />
-          )}
-          {(labelStyle === 'barcode' || labelStyle === 'both') && (
-            <div className="flex flex-col items-center gap-0.5">
-              <Barcode value={l.name} height={BAR_H[labelSize]} />
-              <div className="font-mono text-[7px] tracking-wider opacity-70">{l.name}</div>
+            <div style={{ padding: '4px', border: '1px solid #eee', borderRadius: '4px', marginBottom: '8px' }}>
+              <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} level="Q" />
             </div>
           )}
-          <div className="font-mono text-[9px] font-black text-center">{l.name}</div>
-          <div className="font-mono text-[7px] opacity-60 bg-[var(--ink)]/10 px-2 py-0.5">{l.type}</div>
+          
+          {(labelStyle === 'barcode' || labelStyle === 'both') && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', marginBottom: '8px' }}>
+              <Barcode value={l.name} height={BAR_H[labelSize]} />
+              <div style={{ fontSize: '8px', letterSpacing: '1px', opacity: 0.8 }}>{l.name}</div>
+            </div>
+          )}
+          
+          <div style={{ fontSize: '14px', fontWeight: '900', textAlign: 'center', marginTop: '4px' }}>{l.name}</div>
+          <div style={{ fontSize: '9px', fontWeight: '700', backgroundColor: '#000', color: '#fff', padding: '2px 8px', borderRadius: '4px', marginTop: '6px' }}>
+            {l.type}
+          </div>
         </div>
       );
     }

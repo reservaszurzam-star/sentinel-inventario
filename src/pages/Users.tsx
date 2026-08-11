@@ -86,7 +86,7 @@ const MODULE_GROUPS: { label: string; modules: { key: string; label: string }[] 
     modules: [
       { key: 'operations', label: 'Operaciones' },
       { key: 'adjustments', label: 'Ajustes' },
-      { key: 'purchase-orders', label: '-rdenes OC' },
+      { key: 'purchase-orders', label: 'Órdenes OC' },
       { key: 'history', label: 'Historial' },
       { key: 'operation-history', label: 'Historial General' },
     ],

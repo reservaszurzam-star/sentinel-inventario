@@ -170,7 +170,7 @@ function ReqCascadeSelector({ products, onAdd }: {
     <div className="flex flex-col gap-2 border border-[var(--border)]/20 bg-[var(--bg-card)] rounded-sm p-3">
       <span className="font-mono text-[9px] font-bold uppercase tracking-widest text-[var(--ink)]/50">Agregar prendas al requerimiento</span>
       {products.length === 0 ? (
-        <p className="font-mono text-[10px] opacity-50 text-center py-4">Sin stock en reservas disponible</p>
+        <p className="font-mono text-[10px] opacity-50 text-center py-4">Sin stock disponible</p>
       ) : (
         <>
           <select value={baseName} onChange={e => { setBaseName(e.target.value); setColor(''); setSizeQtys({}); setQty(''); }} className={selectCls}>
@@ -294,8 +294,8 @@ export const PurchaseOrders: React.FC = () => {
   // Ubicación destino fija para requerimientos
   const dispatchLocation = locations.find(l => l.name.toLowerCase().includes('despacho'));
 
-  // Ubicaciones de reserva — busca por nombre
-  const reserveLocations = locations.filter(l => l.name.toLowerCase().includes('reserva'));
+  // Ubicaciones disponibles — cualquiera que no sea Despacho
+  const reserveLocations = locations.filter(l => !l.name.toLowerCase().includes('despacho'));
   const reserveLocationIds = new Set(reserveLocations.map(l => l.id));
   const productsWithReserveStock = useMemo(() => {
     return products
@@ -538,7 +538,7 @@ export const PurchaseOrders: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Prendas * (solo con stock en reservas)</label>
+                    <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Prendas * (solo stock disponible)</label>
                     <ReqCascadeSelector
                       products={productsWithReserveStock}
                       onAdd={newItems => setReqForm(f => ({ ...f, items: [...f.items, ...newItems] }))}
