@@ -16,8 +16,15 @@ export type Location = {
   type: 'ZONE' | 'RACK' | 'BIN' | 'EXTERNAL' | 'WAREHOUSE';
 };
 
-export type TransactionType = 'RECEPTION' | 'DISPATCH' | 'TRANSFER';
+/** Producto → Ubicación designada */
+export type ProductLocation = {
+  id: string;
+  brand: string;
+  productId: string;
+  locationId: string;
+};
 
+export type TransactionType = 'RECEPTION' | 'DISPATCH' | 'TRANSFER';
 export type Transaction = {
   id: string;
   date: string;
@@ -149,3 +156,4 @@ export type AuditLogEntry = {
   oldData?: Record<string, unknown>;
   newData?: Record<string, unknown>;
 };
+

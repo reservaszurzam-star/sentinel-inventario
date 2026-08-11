@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, FUNCTIONS_URL } from '../lib/supabase';
 import type { Session } from '@supabase/supabase-js';
-import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber, AuditLogEntry, Reservation, ReservationStatus } from '../types';
+import { Product, Location, Transaction, StockLevel, Contact, User, Role, UserWithPassword, PurchaseOrder, InventoryAdjustment, NotificationSubscriber, AuditLogEntry, Reservation, ReservationStatus, ProductLocation } from '../types';
 import { Permission, DEFAULT_ROLE_PERMISSIONS } from '../lib/permissions';
-import { defaultProductsOvershark, defaultProductsBravos, defaultProductsBoxPrime, defaultLocations } from '../data/seed-data';
-import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber, dbToAuditEntry, dbToReservation } from './mappers';
+import { defaultProductsOvershark, defaultProductsBravos, defaultProductsBoxPrime, defaultLocations, defaultReserveLocations } from '../data/seed-data';
+import { dbToProduct, dbToLocation, dbToStock, dbToTx, dbToContact, dbToUser, dbToPO, dbToAdj, dbToSubscriber, dbToAuditEntry, dbToReservation, dbToProductLocation } from './mappers';
 import { nowLima } from '../lib/utils';
 
 export type Brand = 'OVERSHARK' | 'BRAVOS' | 'BOX_PRIME';
@@ -15,8 +15,12 @@ interface AppContextType {
   setActiveBrand: (brand: Brand) => void;
   products: Product[];
   locations: Location[];
-  transactions: Transaction[];
+    transactions: Transaction[];
   stockLevels: StockLevel[];
+  productLocations: ProductLocation[];
+  /** Devuelve la ubicación designada de un producto (la que se ve en el módulo de Ubicaciones). */
+  getProductLocation: (productId: string) => string | undefined;
+  assignProductLocation: (productId: string, locationId: string | null) => Promise<void>;
   contacts: Contact[];
   currentUser: User;
   viewAsRole: Role | null;
@@ -89,8 +93,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [adjustments, setAdjustments] = useState<InventoryAdjustment[]>([]);
   const [rolePermissions, setRolePermissions] = useState<Record<Role, Record<string, Permission>>>(DEFAULT_ROLE_PERMISSIONS);
   const [notificationSubscribers, setNotificationSubscribers] = useState<NotificationSubscriber[]>([]);
-  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
+    const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [productLocations, setProductLocations] = useState<ProductLocation[]>([]);
 
   const loadProfile = async (userId: string) => {
     const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
@@ -107,7 +112,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loadBrandData = useCallback(async (brand: Brand) => {
     setLoading(true);
     try {
-      const [p, l, s, t, c, po, adj, u, res] = await Promise.all([
+            const [p, l, s, t, c, po, adj, u, res, pl] = await Promise.all([
         supabase.from('products').select('*').eq('brand', brand),
         supabase.from('locations').select('*').eq('brand', brand),
         supabase.from('stock_levels').select('*').eq('brand', brand),
@@ -117,6 +122,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         supabase.from('inventory_adjustments').select('*').eq('brand', brand).order('date', { ascending: false }),
         supabase.from('profiles').select('*'),
         supabase.from('reservations').select('*').eq('brand', brand).order('created_at', { ascending: false }),
+        supabase.from('product_locations').select('*').eq('brand', brand),
       ]);
       const loadedProducts = (p.data || []).map(dbToProduct);
       setProducts(loadedProducts);
@@ -128,6 +134,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setAdjustments((adj.data || []).map(dbToAdj));
       setUsers((u.data || []).map(dbToUser));
       setReservations((res.data || []).map(dbToReservation));
+      setProductLocations((pl.data || []).map(dbToProductLocation));
 
       if (loadedProducts.length === 0) {
         const seedProds = brand === 'OVERSHARK' ? defaultProductsOvershark : brand === 'BRAVOS' ? defaultProductsBravos : defaultProductsBoxPrime;
@@ -141,9 +148,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }));
           await supabase.from('products').upsert(batch, { onConflict: 'id' });
         }
-        const { count: locCount } = await supabase.from('locations').select('*', { count: 'exact', head: true }).eq('brand', brand);
+                const { count: locCount } = await supabase.from('locations').select('*', { count: 'exact', head: true }).eq('brand', brand);
         if (!locCount) {
           await supabase.from('locations').insert(defaultLocations.map(loc => ({ id: loc.id, brand, name: loc.name, type: loc.type })));
+        }
+        // Garantiza las ubicaciones operativas de reserva/despacho para la marca,
+        // aun si la marca ya existía con otras ubicaciones. Los formularios de
+        // OPERACIONES y REQUERIMIENTOS las necesitan por nombre.
+        const { data: existingLocs } = await supabase.from('locations').select('name').eq('brand', brand);
+        const knownNames = new Set((existingLocs || []).map(l => l.name.toUpperCase()));
+        const missingReserve = defaultReserveLocations.filter(l => !knownNames.has(l.name.toUpperCase()));
+        if (missingReserve.length > 0) {
+          const { error: reserveErr } = await supabase.from('locations').insert(missingReserve.map(loc => ({ id: loc.id, brand, name: loc.name, type: loc.type })));
+          if (reserveErr) console.error('ensureReserveLocations failed:', reserveErr);
         }
         const [p2, l2] = await Promise.all([
           supabase.from('products').select('*').eq('brand', brand),
@@ -258,8 +275,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const entry = dbToAuditEntry(payload.new);
           setAuditLog(prev => [entry, ...prev].slice(0, 1000));
         })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' },
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' },
         () => supabase.from('reservations').select('*').eq('brand', activeBrand).order('created_at', { ascending: false }).then(({ data }) => { if (data) setReservations(data.map(dbToReservation)); }))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_locations' },
+        () => supabase.from('product_locations').select('*').eq('brand', activeBrand).then(({ data }) => { if (data) setProductLocations(data.map(dbToProductLocation)); }))
       .subscribe();
 
     // Polling silencioso cada 5s — nunca toca `loading`, no interrumpe formularios
@@ -448,9 +467,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     supabase.from('locations').delete().eq('id', id).then(({ error }) => { if (error) loadBrandData(activeBrand); });
   };
 
-  const deleteStockLevel = (productId: string, locationId: string) => {
+    const deleteStockLevel = (productId: string, locationId: string) => {
     setStockLevels(prev => prev.filter(s => !(s.productId === productId && s.locationId === locationId)));
     supabase.from('stock_levels').delete().eq('product_id', productId).eq('location_id', locationId).eq('brand', activeBrand).then(({ error }) => { if (error) loadBrandData(activeBrand); });
+  };
+
+  /** Devuelve la ubicación designada de un producto. */
+  const getProductLocation = useCallback((productId: string): string | undefined =>
+    productLocations.find(pl => pl.productId === productId)?.locationId,
+  [productLocations]);
+
+  /** Asigna (o quita, si locationId es null) la ubicación designada de un producto. */
+  const assignProductLocation = async (productId: string, locationId: string | null): Promise<void> => {
+    if (!locationId) {
+      // Quitar designación existente
+      const existing = productLocations.find(pl => pl.productId === productId);
+      if (existing) {
+        setProductLocations(prev => prev.filter(pl => pl.productId !== productId));
+        const { error } = await supabase.from('product_locations').delete().eq('id', existing.id);
+        if (error) throw new Error(error.message);
+      }
+      return;
+    }
+    const existing = productLocations.find(pl => pl.productId === productId);
+    if (existing) {
+      setProductLocations(prev => prev.map(pl => pl.productId === productId ? { ...pl, locationId } : pl));
+      const { error } = await supabase.from('product_locations').update({ location_id: locationId, updated_at: nowLima() }).eq('id', existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const temp: ProductLocation = { id: crypto.randomUUID(), brand: activeBrand, productId, locationId };
+      setProductLocations(prev => [...prev, temp]);
+      const { data, error } = await supabase.from('product_locations').insert({ brand: activeBrand, product_id: productId, location_id: locationId }).select().single();
+      if (error) { setProductLocations(prev => prev.filter(pl => pl.id !== temp.id)); throw new Error(error.message); }
+      if (data) setProductLocations(prev => prev.map(pl => pl.productId === productId ? dbToProductLocation(data) : pl));
+    }
   };
 
   const addContact = (contact: Omit<Contact, 'id'>) => {
@@ -695,7 +745,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refreshAll = useCallback(async () => {
     const brand = activeBrand;
-    const [p, l, s, t, c, po, adj, res] = await Promise.all([
+        const [p, l, s, t, c, po, adj, res, pl] = await Promise.all([
       supabase.from('products').select('*').eq('brand', brand),
       supabase.from('locations').select('*').eq('brand', brand),
       supabase.from('stock_levels').select('*').eq('brand', brand),
@@ -704,6 +754,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       supabase.from('purchase_orders').select('*, purchase_order_items(*)').eq('brand', brand).order('date', { ascending: false }),
       supabase.from('inventory_adjustments').select('*').eq('brand', brand).order('date', { ascending: false }),
       supabase.from('reservations').select('*').eq('brand', brand).order('created_at', { ascending: false }),
+      supabase.from('product_locations').select('*').eq('brand', brand),
     ]);
     if (p.data) setProducts(p.data.map(dbToProduct));
     if (l.data) setLocations(l.data.map(dbToLocation));
@@ -713,11 +764,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (po.data) setPurchaseOrders(po.data.map(dbToPO));
     if (adj.data) setAdjustments(adj.data.map(dbToAdj));
     if (res.data) setReservations(res.data.map(dbToReservation));
+    if (pl.data) setProductLocations(pl.data.map(dbToProductLocation));
   }, [activeBrand]);
 
   const value = useMemo<AppContextType>(() => ({
     loading, activeBrand, setActiveBrand,
-    products, locations, transactions, stockLevels,
+        products, locations, transactions, stockLevels, productLocations, getProductLocation, assignProductLocation,
     contacts, currentUser, viewAsRole, setViewAsRole, effectiveRole, users, purchaseOrders, adjustments,
     reservations, addReservation, updateReservationStatus, updateReservation, deleteReservation,
     addTransaction, deleteTransaction, hardDeleteTransaction, hardDeleteTransactions, updateTransaction, clearAllTransactions, addProduct, updateProduct, deleteProduct,
@@ -730,7 +782,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notificationSubscribers, addSubscriber, updateSubscriber, deleteSubscriber,
     auditLog, refreshAuditLog, refreshAll,
   }), [
-    loading, activeBrand, products, locations, transactions, stockLevels,
+        loading, activeBrand, products, locations, transactions, stockLevels, productLocations, getProductLocation, assignProductLocation,
     contacts, currentUser, viewAsRole, effectiveRole, users, purchaseOrders, adjustments, reservations, rolePermissions,
     notificationSubscribers, auditLog, refreshAuditLog, refreshAll,
   ]);

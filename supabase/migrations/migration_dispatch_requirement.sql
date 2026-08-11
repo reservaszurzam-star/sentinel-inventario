@@ -19,7 +19,7 @@ declare
   v_payload    jsonb;
   v_product_id text;
   v_qty        integer;
-  v_from_loc   uuid;
+  v_from_loc   text;
   v_total_qty       integer := 0;
   v_total_received  integer := 0;
   v_new_status      text;
@@ -35,7 +35,7 @@ begin
   for v_payload in select * from jsonb_array_elements(p_qtys) loop
     v_product_id := v_payload->>'product_id';
     v_qty        := (v_payload->>'qty')::integer;
-    v_from_loc   := (v_payload->>'from_location_id')::uuid;
+    v_from_loc   := (v_payload->>'from_location_id');
 
     if v_qty is null or v_qty <= 0 then
       continue;

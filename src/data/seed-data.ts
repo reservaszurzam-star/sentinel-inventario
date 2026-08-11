@@ -809,4 +809,15 @@ export const defaultLocations: Location[] = [
   { id: 'l2', name: 'Estante A - Nivel 1', type: 'RACK' },
   { id: 'l3', name: 'Estante B - Nivel 2', type: 'RACK' },
   { id: 'l-ext', name: 'Tienda Exhibición', type: 'EXTERNAL' },
+    { id: 'l-res-general', name: 'ALMACEN-RESERVA GENERAL', type: 'ZONE' },
+  { id: 'l-stock-despacho', name: 'ALMACEN-STOCK DESPACHO', type: 'ZONE' },
+  { id: 'l-texajo', name: 'ALMACEN-TEXAJO', type: 'ZONE' },
+];
+
+// Ubicaciones operativas de tránsito/reserva. Independiente de defaultLocations
+// para poder garantizarlas en marcas que ya existen (ver loadBrandData en AppContext).
+export const defaultReserveLocations: Location[] = [
+  { id: 'l-res-general', name: 'ALMACEN-RESERVA GENERAL', type: 'ZONE' },
+  { id: 'l-stock-despacho', name: 'ALMACEN-STOCK DESPACHO', type: 'ZONE' },
+  { id: 'l-texajo', name: 'ALMACEN-TEXAJO', type: 'ZONE' },
 ];

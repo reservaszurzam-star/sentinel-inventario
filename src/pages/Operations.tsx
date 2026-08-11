@@ -2116,7 +2116,7 @@ const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ 
                   className="px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-wider border hover:opacity-70"
                   style={{ borderColor: 'var(--border)', color: 'var(--ink)' }}
                 >
-                  ✕
+                  Ô£ò
                 </button>
               </div>
             ) : (
@@ -2125,7 +2125,7 @@ const BulletinModal: React.FC<{ data: BulletinData; onClose: () => void }> = ({ 
                 className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase tracking-wider border transition-all hover:opacity-80"
                 style={{ borderColor: 'var(--border)', color: 'var(--ink)', background: saved ? '#16a34a22' : 'transparent' }}
               >
-                <CalendarDays size={11} /> {saved ? '✓ Fecha guardada' : 'Cambiar fecha'}
+                <CalendarDays size={11} /> {saved ? 'Ô£ô Fecha guardada' : 'Cambiar fecha'}
               </button>
             )}
             <button
@@ -2968,7 +2968,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho'
       .catch(() => '');
     const dateLabel = dateFrom || dateTo
       ? `Del ${dateFrom || '-'} al ${dateTo || '-'}`
-      : 'Todos los per-odos';
+      : 'Todos los períodos';
     const rowsHTML = histFiltered.map((tx, i) => {
       const prod = products.find(p => p.id === tx.productId);
       const isWO = tx.reference?.startsWith('[BAJA');
@@ -3274,7 +3274,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho'
             Movimientos por producto
           </div>
           {byProduct.length === 0 ? (
-            <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones en el per-odo</div>
+            <div className="px-4 py-10 text-center font-mono text-[10px] opacity-40 uppercase">Sin operaciones en el período</div>
           ) : byProduct.map((row, i) => {
             const total = row.in + row.out + row.transfer + row.writeoff;
             const maxTotal = byProduct[0] ? byProduct[0].in + byProduct[0].out + byProduct[0].transfer + byProduct[0].writeoff : 1;
@@ -3323,7 +3323,7 @@ export const OperationsReport: React.FC<{ mode?: 'ops' | 'dispatch' | 'despacho'
         <div className="flex flex-col gap-4">
           {writeoffs.length === 0 ? (
             <div className="border border-[var(--border)]/20 px-4 py-12 text-center font-mono text-[10px] opacity-40 uppercase">
-              No hay bajas registradas en este per-odo
+              No hay bajas registradas en este período
             </div>
           ) : (
             <>

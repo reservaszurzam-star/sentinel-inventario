@@ -34,6 +34,7 @@ export const navItems: NavItem[] = [
   { id: 'dashboard', label: 'DASHBOARD', icon: LayoutDashboard },
   { id: 'inventory', label: 'INVENTARIO', icon: PackageSearch },
   { id: 'locations', label: 'UBICACIONES', icon: MapPin },
+  { id: 'product-locations', label: 'DISEÑO PRODUCTOS', icon: LayoutGrid },
   { id: 'operations', label: 'OPERACIONES', icon: ArrowLeftRight },
   { id: 'adjustments', label: 'AJUSTES', icon: SlidersHorizontal },
   { id: 'purchase-orders', label: 'ÓRDENES OC', icon: ShoppingCart },
@@ -166,9 +167,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="w-full py-1 px-2 text-[10px] font-bold focus:outline-none transition-all font-mono uppercase cursor-pointer"
                 style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--ink)' }}
               >
-                <option value="OVERSHARK">OVERSHARK</option>
+                                <option value="OVERSHARK">OVERSHARK</option>
                 <option value="BRAVOS">BRAVOS URBAN</option>
-                <option value="BOX_PRIME">BOX PRIME</option>
               </select>
             </div>
             <div className="font-mono text-[8px] opacity-60 uppercase tracking-widest mt-2">{BRAND_LEGAL[activeBrand] ?? activeBrand} // v-3.0</div>

@@ -1,7 +1,8 @@
-import type { Product, Location, StockLevel, Transaction, Contact, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, InventoryAdjustment, NotificationSubscriber, AuditLogEntry, Reservation } from '../types';
+import type { Product, Location, StockLevel, Transaction, Contact, Role, UserWithPassword, PurchaseOrder, PurchaseOrderItem, InventoryAdjustment, NotificationSubscriber, AuditLogEntry, Reservation, ProductLocation } from '../types';
 
 export const dbToProduct = (r: any): Product => ({ id: r.id, code: r.code, name: r.name, color: r.color ?? undefined, size: r.size ?? undefined, category: r.category, lowStockThreshold: r.low_stock_threshold ?? undefined, costPrice: r.cost_price ?? undefined, sellPrice: r.sell_price ?? undefined });
 export const dbToLocation = (r: any): Location => ({ id: r.id, name: r.name, type: r.type });
+export const dbToProductLocation = (r: any): ProductLocation => ({ id: r.id, brand: r.brand, productId: r.product_id, locationId: r.location_id });
 export const dbToStock = (r: any): StockLevel => ({ id: r.id, productId: r.product_id, locationId: r.location_id, quantity: r.quantity });
 export const dbToTx = (r: any): Transaction => ({ id: r.id, date: r.date, type: r.type, productId: r.product_id, quantity: r.quantity, fromLocationId: r.from_location_id ?? undefined, toLocationId: r.to_location_id ?? undefined, reference: r.reference, user: r.user_name, status: r.status, signature: r.signature ?? undefined, contactId: r.contact_id ?? undefined, serialNumber: r.serial_number ?? undefined });
 export const dbToContact = (r: any): Contact => ({ id: r.id, type: r.type, name: r.name, document: r.document, phone: r.phone ?? undefined, email: r.email ?? undefined });
@@ -37,3 +38,4 @@ export const dbToAuditEntry = (r: any): AuditLogEntry => ({
   oldData: r.old_data ?? undefined,
   newData: r.new_data ?? undefined,
 });
+

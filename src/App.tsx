@@ -10,6 +10,7 @@ import { Inventory } from './pages/Inventory';
 import { Operations } from './pages/Operations';
 import { History } from './pages/History';
 import { Locations } from './pages/Locations';
+import { ProductLocations } from './pages/ProductLocations';
 import { Contacts } from './pages/Contacts';
 import { Users } from './pages/Users';
 import { PurchaseOrders } from './pages/PurchaseOrders';
@@ -52,6 +53,7 @@ function AppShell() {
         <Route path="/dashboard" element={<Guarded moduleId="dashboard" fallback={homePath}><Dashboard /></Guarded>} />
         <Route path="/inventory" element={<Guarded moduleId="inventory" fallback={homePath}><Inventory /></Guarded>} />
         <Route path="/locations" element={<Guarded moduleId="locations" fallback={homePath}><Locations /></Guarded>} />
+        <Route path="/product-locations" element={<Guarded moduleId="product-locations" fallback={homePath}><ProductLocations /></Guarded>} />
         <Route path="/operations" element={<Guarded moduleId="operations" fallback={homePath}><Operations /></Guarded>} />
         <Route path="/history" element={<Guarded moduleId="history" fallback={homePath}><History /></Guarded>} />
         <Route path="/contacts" element={<Guarded moduleId="contacts" fallback={homePath}><Contacts /></Guarded>} />

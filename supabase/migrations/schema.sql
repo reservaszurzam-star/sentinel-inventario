@@ -163,7 +163,7 @@ create policy "profiles_update_own" on profiles
 do $$
 declare t text;
 begin
-  foreach t in array array['products', 'locations', 'contacts'] loop
+  foreach t in array array['products', 'contacts'] loop
     execute format('drop policy if exists "%1$s_select" on %1$s', t);
     execute format('drop policy if exists "%1$s_insert" on %1$s', t);
     execute format('drop policy if exists "%1$s_update" on %1$s', t);
@@ -173,6 +173,16 @@ begin
     execute format('create policy "%1$s_update" on %1$s for update using (get_my_role() in (''ADMIN_GENERAL'', ''CEO'', ''ADMINISTRADOR'')) with check (get_my_role() in (''ADMIN_GENERAL'', ''CEO'', ''ADMINISTRADOR''))', t);
     execute format('create policy "%1$s_delete" on %1$s for delete using (get_my_role() in (''ADMIN_GENERAL'', ''CEO''))', t);
   end loop;
+
+  -- Políticas exclusivas para LOCATIONS (solo ADMIN_GENERAL puede modificar)
+  drop policy if exists "locations_select" on locations;
+  drop policy if exists "locations_insert" on locations;
+  drop policy if exists "locations_update" on locations;
+  drop policy if exists "locations_delete" on locations;
+  create policy "locations_select" on locations for select using (auth.role() = 'authenticated');
+  create policy "locations_insert" on locations for insert with check (get_my_role() = 'ADMIN_GENERAL');
+  create policy "locations_update" on locations for update using (get_my_role() = 'ADMIN_GENERAL') with check (get_my_role() = 'ADMIN_GENERAL');
+  create policy "locations_delete" on locations for delete using (get_my_role() = 'ADMIN_GENERAL');
 end $$;
 
 -- =====================================================

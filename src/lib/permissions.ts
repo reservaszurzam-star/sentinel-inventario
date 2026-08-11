@@ -9,6 +9,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'full', contacts: 'full', reports: 'full', labels: 'full',
     'warehouse-map': 'full', users: 'full', 'operation-history': 'full',
     reservations: 'full', 'livex-feed': 'full', qrs: 'full',
+    'product-locations': 'full',
   },
   CEO: {
     dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
@@ -16,6 +17,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'view', contacts: 'full', reports: 'full', labels: 'view',
     'warehouse-map': 'view', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'livex-feed': 'view', qrs: 'view',
+    'product-locations': 'full',
   },
   ADMINISTRADOR: {
     dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
@@ -23,6 +25,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'view', contacts: 'full', reports: 'full', labels: 'view',
     'warehouse-map': 'view', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'livex-feed': 'none', qrs: 'full',
+    'product-locations': 'full',
   },
   JEFE_ALMACEN: {
     dashboard: 'view', analysis: 'view', inventory: 'full', locations: 'full',
@@ -30,6 +33,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'full', contacts: 'view', reports: 'view', labels: 'none',
     'warehouse-map': 'none', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'livex-feed': 'none', qrs: 'full',
+    'product-locations': 'full',
   },
   DESPACHADOR: {
     dashboard: 'view', analysis: 'none', inventory: 'view', locations: 'view',
@@ -54,3 +58,5 @@ export const canView = (role: Role, tab: string, perms?: Record<Role, Record<str
 
 export const canEdit = (role: Role, tab: string, perms?: Record<Role, Record<string, Permission>>): boolean =>
   ((perms ?? DEFAULT_ROLE_PERMISSIONS)[role]?.[tab] ?? 'none') === 'full';
+
+

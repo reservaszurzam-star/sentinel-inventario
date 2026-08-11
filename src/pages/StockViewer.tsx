@@ -82,7 +82,7 @@ export function StockViewer({ session }: { session: any }) {
           .eq('type', 'BIN')
           .eq('name', modelName)
           .limit(1)
-          .single();
+          .maybeSingle();
 
         let stockData: any[] = [];
         let productIds: string[] = [];
