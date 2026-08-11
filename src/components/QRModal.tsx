@@ -16,7 +16,7 @@ export const QRModal: React.FC<QRModalProps> = ({ item, onClose }) => {
 
   const baseUrl = window.location.origin + window.location.pathname;
   const qrValue = item.kind === 'product'
-    ? JSON.stringify({ id: item.id, code: item.code, name: item.name, color: item.color, size: item.size, brand: item.brand })
+    ? `${baseUrl}#/q/${encodeURIComponent(item.name.trim())}?b=${item.brand}&v=${item.id}`
     : `${baseUrl}#/l/${item.id}?b=${item.brand}`;
 
   const handlePrint = () => {

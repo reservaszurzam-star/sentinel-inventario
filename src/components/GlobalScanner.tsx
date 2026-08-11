@@ -36,6 +36,15 @@ export function GlobalScanner() {
           const qs = parts[1].split('?');
           const modelName = decodeURIComponent(qs[0]);
           setScannedModel(modelName);
+          
+          if (qs.length > 1) {
+            const searchParams = new URLSearchParams(qs[1]);
+            const v = searchParams.get('v');
+            if (v) {
+              // Si el QR tiene un ID de variante específico, lo guardamos para auto-seleccionarlo
+              setSelectedProduct(v);
+            }
+          }
           scanner.clear();
         } else if (decodedText.includes('#/l/')) {
           alert("Has escaneado una Ubicación. Selecciona un Producto para agregar.");
