@@ -63,7 +63,8 @@ export function QRs() {
   const getQRValue = (modelName: string) => {
     const baseUrl = window.location.origin + window.location.pathname; // includes /index.html if present
     const safeModel = encodeURIComponent(modelName.trim());
-    return `${baseUrl}#/q/${safeModel}?b=${activeBrand}`;
+    const safeBrand = encodeURIComponent(activeBrand);
+    return `${baseUrl}#/q/${safeModel}?b=${safeBrand}`;
   };
 
   const handlePrint = () => {

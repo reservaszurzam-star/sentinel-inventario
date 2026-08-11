@@ -64,7 +64,8 @@ export function StockViewer({ session }: { session: any }) {
   const [binId, setBinId] = useState<string | null>(null);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
-  const modelName = model ? decodeURIComponent(model) : '';
+  const modelName = model || '';
+  const variantId = searchParams.get('v');
 
   useEffect(() => {
     if (!modelName || !brand) return;
@@ -92,7 +93,7 @@ export function StockViewer({ session }: { session: any }) {
         // stored name differs slightly from the QR label.
         let productsById = pData || [];
         if (productsById.length === 0 && modelName.trim()) {
-          const compact = normalizedName.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '');
+          const compact = normalizedName.replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '').toLowerCase();
           const { data: all } = await supabase
             .from('products')
             .select('id, name')
@@ -100,7 +101,7 @@ export function StockViewer({ session }: { session: any }) {
           if (all) {
             productsById = all.filter(p =>
               !!p.name &&
-              p.name.trim().replace(/\s+/g, ' ').replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '') === compact
+              p.name.trim().replace(/\s+/g, ' ').replace(/[^a-zA-Z0-9áéíóúüñÁÉÍÓÚÜÑ]/gi, '').toLowerCase() === compact
             ).map(p => ({ id: p.id, name: p.name }));
           }
         }
@@ -137,7 +138,6 @@ export function StockViewer({ session }: { session: any }) {
         let total = 0;
         const variantsWithStock = products.map(p => {
           const qty = stockByProduct[p.id] || 0;
-          total += qty;
           return {
             id: p.id,
             name: p.name,
@@ -145,10 +145,24 @@ export function StockViewer({ session }: { session: any }) {
             size: p.size || 'N/A',
             totalQuantity: qty,
           };
-        }).sort((a, b) => a.color.localeCompare(b.color) || a.size.localeCompare(b.size));
+        }).filter(v => v.totalQuantity > 0);
+
+        variantsWithStock.sort((a, b) => a.color.localeCompare(b.color) || a.size.localeCompare(b.size));
+        
+        variantsWithStock.forEach(v => {
+          total += v.totalQuantity;
+        });
 
         setVariants(variantsWithStock as any);
         setTotalStock(total);
+
+        // Auto-select color if a variant ID was passed
+        if (variantId) {
+          const targetVariant = variantsWithStock.find(v => v.id === variantId);
+          if (targetVariant) {
+            setSelectedColor(targetVariant.color);
+          }
+        }
       } catch (error) {
         console.error('Error fetching stock:', error);
       } finally {

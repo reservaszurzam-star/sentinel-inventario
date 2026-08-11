@@ -15,9 +15,10 @@ export const QRModal: React.FC<QRModalProps> = ({ item, onClose }) => {
   const printRef = useRef<HTMLDivElement>(null);
 
   const baseUrl = window.location.origin + window.location.pathname;
+  const safeBrand = encodeURIComponent(item.brand || '');
   const qrValue = item.kind === 'product'
-    ? `${baseUrl}#/q/${encodeURIComponent(item.name.trim())}?b=${item.brand}&v=${item.id}`
-    : `${baseUrl}#/l/${item.id}?b=${item.brand}`;
+    ? `${baseUrl}#/q/${encodeURIComponent(item.name.trim())}?b=${safeBrand}&v=${item.id}`
+    : `${baseUrl}#/l/${item.id}?b=${safeBrand}`;
 
   const handlePrint = () => {
     const content = printRef.current;
