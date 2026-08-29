@@ -125,7 +125,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         supabase.from('reservations').select('*').eq('brand', brand).order('created_at', { ascending: false }),
         supabase.from('product_locations').select('*').eq('brand', brand),
       ]);
-      const loadedProducts = (p.data || []).map(dbToProduct);
+      const JERSEY_MODELS = new Set(['CLASICO', 'OVERSIZE', 'SLIM FIT', 'CAMISERO JERSEY', 'JERSEY MANGA LARGA']);
+      const WAFFLE_MODELS = new Set(['WAFFLE', 'WAFFLE CAMISERO', 'WAFFLE MANGA LARGA', 'CAMISA WAFFLE', 'CUELLO CHINO WAFFLE']);
+      const PIQUE_MODELS = new Set(['CUELLO CHINO', 'CAMISERO PIQUE', 'CAMISERO PIQUE MANGA LARGA']);
+      const GIRLS_MODELS = new Set(['BABY TY', 'BABY TY ESCOTE', 'BABY TY MANGA', 'BABY TY ESCOTADO MANGA', 'TOP RIB', 'TOP RIB MANGA']);
+      const COMPLEMENTS_MODELS = new Set(['PANTALON CATANIA', 'MEDIAS CORTAS', 'MEDIAS LARGAS']);
+
+      const loadedProducts = (p.data || []).map(dbToProduct).map(prod => {
+        if (brand === 'OVERSHARK') {
+          const upperName = prod.name?.trim().toUpperCase();
+          if (JERSEY_MODELS.has(upperName)) return { ...prod, category: 'Polos Jersey' };
+          if (WAFFLE_MODELS.has(upperName)) return { ...prod, category: 'Polos Waffle' };
+          if (PIQUE_MODELS.has(upperName)) return { ...prod, category: 'Polos Pique' };
+          if (GIRLS_MODELS.has(upperName)) return { ...prod, category: 'Polos Girls' };
+          if (COMPLEMENTS_MODELS.has(upperName)) return { ...prod, category: 'Complementos' };
+        }
+        return prod;
+      });
       setProducts(loadedProducts);
       setLocations((l.data || []).map(dbToLocation));
       setStockLevels((s.data || []).map(dbToStock));

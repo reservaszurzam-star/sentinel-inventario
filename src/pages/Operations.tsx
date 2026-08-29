@@ -3,12 +3,14 @@ import { useAppContext } from '../store/AppContext';
 import { Confirmations } from './Confirmations';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { TutorialModal, OPERATIONS_TUTORIAL_STEPS } from '../components/TutorialModal';
+import { FamilyQRModal } from '../components/FamilyQRModal';
+import { CategoryQRsTab } from '../components/CategoryQRsTab';
 import {
   ArrowDownLeft, ArrowUpRight, ArrowRightLeft, AlertTriangle, X,
   Printer, CheckCircle, ScanLine, Pencil, Trash2, Camera, Plus, Minus, Filter,
   BarChart2, MapPin, Package, TrendingUp, TrendingDown, ShieldOff,
   FileText, FileSpreadsheet, Download, ChevronDown, ChevronUp, Search, Mail, CalendarDays,
-  MoreVertical, MessageSquare, ExternalLink, RefreshCw, Eye, History, Settings, Calendar, User, PackageSearch, LogOut, CheckSquare
+  MoreVertical, MessageSquare, ExternalLink, RefreshCw, Eye, History, Settings, Calendar, User, PackageSearch, LogOut, CheckSquare, QrCode
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
@@ -207,9 +209,14 @@ const CascadeProductSelector: React.FC<CascadeProps> = ({ products, onAdd, onSca
           {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         {onScanClick && (
-          <button type="button" onClick={onScanClick} title="Escanear QR"
-            className="shrink-0 border border-[var(--border)] bg-[var(--bg-card-alt)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all px-3 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={onScanClick}
+            title="Escanear QR universal o de prenda"
+            className="shrink-0 border border-[var(--border)] bg-emerald-600 hover:bg-emerald-700 text-white transition-all px-3.5 flex items-center justify-center gap-1.5 font-mono text-[10px] font-bold shadow-sm"
+          >
             <ScanLine size={15} />
+            <span className="hidden sm:inline">ESCANEAR QR</span>
           </button>
         )}
       </div>
@@ -558,7 +565,7 @@ export const Operations: React.FC = () => {
   const storedFilter = (() => {
     try { return JSON.parse(sessionStorage.getItem('operationsLogFilter') || 'null'); } catch { return null; }
   })();
-  const [mainTab, setMainTab] = useState<'operations' | 'log' | 'reports' | 'bulletins'>(storedFilter ? 'log' : 'operations');
+  const [mainTab, setMainTab] = useState<'operations' | 'log' | 'reports' | 'bulletins' | 'confirmations' | 'category_qrs'>(storedFilter ? 'log' : 'operations');
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col gap-6 pb-8">
@@ -588,11 +595,11 @@ export const Operations: React.FC = () => {
       </div>
 
       {/* Main tabs */}
-      <div className="flex border border-[var(--border)] bg-[var(--bg-sidebar)]">
+      <div className="flex border border-[var(--border)] bg-[var(--bg-sidebar)] overflow-x-auto">
         <button
           onClick={() => setMainTab('operations')}
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all whitespace-nowrap',
             mainTab === 'operations'
               ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
               : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
@@ -604,7 +611,7 @@ export const Operations: React.FC = () => {
         <button
           onClick={() => setMainTab('log')}
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all whitespace-nowrap',
             mainTab === 'log'
               ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
               : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
@@ -616,7 +623,7 @@ export const Operations: React.FC = () => {
         <button
           onClick={() => setMainTab('reports')}
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all',
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all whitespace-nowrap',
             mainTab === 'reports'
               ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
               : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
@@ -630,7 +637,7 @@ export const Operations: React.FC = () => {
           <button
             onClick={() => setMainTab('bulletins')}
             className={cn(
-              'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
+              'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all whitespace-nowrap',
               mainTab === 'bulletins'
                 ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
                 : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
@@ -644,7 +651,7 @@ export const Operations: React.FC = () => {
         <button
           onClick={() => setMainTab('confirmations')}
           className={cn(
-            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all',
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest border-r border-[var(--border)] transition-all whitespace-nowrap',
             mainTab === 'confirmations'
               ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
               : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
@@ -652,6 +659,19 @@ export const Operations: React.FC = () => {
         >
           <CheckSquare size={14} />
           CONFIRMACIÓN
+        </button>
+
+        <button
+          onClick={() => setMainTab('category_qrs')}
+          className={cn(
+            'flex items-center gap-2 px-5 py-3 font-mono text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap',
+            mainTab === 'category_qrs'
+              ? 'bg-[var(--ink)] text-[var(--ink-inv)]'
+              : 'text-[var(--ink)] opacity-60 hover:opacity-100 hover:bg-[var(--surface)]'
+          )}
+        >
+          <QrCode size={14} />
+          QR CATEGORÍAS
         </button>
       </div>
 
@@ -705,6 +725,10 @@ export const Operations: React.FC = () => {
         <div className="border border-[var(--border)] bg-[var(--bg-card)] p-5 h-full">
           <Confirmations />
         </div>
+      )}
+
+      {mainTab === 'category_qrs' && (
+        <CategoryQRsTab />
       )}
     </div>
   );
@@ -1293,13 +1317,13 @@ export const OperationForm: React.FC<{ type: TransactionType }> = ({ type }) => 
       {guide && <GuideModal guide={guide} onClose={() => setGuide(null)} />}
 
       {scanningForKey !== null && (
-        <QRScannerModal
+        <FamilyQRModal
+          products={products}
+          stockLevels={stockLevels}
+          fromLocation={fromLocation}
+          opType={type}
+          onAdd={(items) => addLineItems(items)}
           onClose={() => setScanningForKey(null)}
-          onDetected={(id) => {
-            // QR scan adds a single line with qty 1
-            addLineItems([{ key: `qr_${id}_${Date.now()}`, productId: id, qty: '1' }]);
-            setScanningForKey(null);
-          }}
         />
       )}
     </form>
@@ -1321,6 +1345,7 @@ const WriteOffForm: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showPreview, setShowPreview] = useState(false);
+  const [scanningForKey, setScanningForKey] = useState<string | null>(null);
 
   // Devolución al proveedor
   const [isReturn, setIsReturn] = useState(false);
@@ -1486,6 +1511,7 @@ const WriteOffForm: React.FC = () => {
           <CascadeProductSelector
             products={products}
             onAdd={(item) => setLineItems(prev => [...prev, item])}
+            onScanClick={() => setScanningForKey('matrix')}
             stockLevels={stockLevels}
             fromLocation={fromLocation}
             opType="DISPATCH"
@@ -1774,92 +1800,81 @@ const WriteOffForm: React.FC = () => {
                           : 'border-[var(--border)] opacity-60 hover:opacity-100'
                       )}
                     >
-                      TODOS ({receptionModalItems.length})
+                      TODOS ({names.length})
                     </button>
-                    {names.map(name => {
-                      const count = receptionModalItems.filter(i => i.product?.name === name).length;
-                      const active = modalFilterName === name;
-                      return (
-                        <button
-                          key={name}
-                          onClick={() => { setModalFilterName(active ? null : name); setModalFilterColor(null); }}
-                          className={cn(
-                            'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
-                            active
-                              ? 'bg-orange-600 text-white border-orange-600'
-                              : 'border-[var(--border)] opacity-60 hover:opacity-100'
-                          )}
-                        >
-                          {name} ({count})
-                        </button>
-                      );
-                    })}
+                    {names.map(name => (
+                      <button
+                        key={name}
+                        onClick={() => { setModalFilterName(name); setModalFilterColor(null); }}
+                        className={cn(
+                          'px-2.5 py-1 font-mono text-[9px] font-black uppercase tracking-wider border transition-colors',
+                          modalFilterName === name
+                            ? 'bg-orange-600 text-white border-orange-600'
+                            : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                        )}
+                      >
+                        {name}
+                      </button>
+                    ))}
                   </div>
-                  {/* Fila colores — solo si hay modelo seleccionado */}
-                  {colorsForName.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pl-1">
-                      <span className="font-mono text-[8px] opacity-40 uppercase tracking-widest self-center mr-1">COLOR:</span>
+                  {/* Fila colores (solo si hay modelo seleccionado y más de un color) */}
+                  {modalFilterName && colorsForName.length > 1 && (
+                    <div className="flex flex-wrap gap-1.5 pl-2 border-l-2 border-orange-600">
                       <button
                         onClick={() => setModalFilterColor(null)}
                         className={cn(
                           'px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider border transition-colors',
                           modalFilterColor === null
-                            ? 'bg-orange-500 text-white border-orange-500'
-                            : 'border-[var(--border)] opacity-50 hover:opacity-100'
+                            ? 'bg-orange-600 text-white border-orange-600'
+                            : 'border-[var(--border)] opacity-60 hover:opacity-100'
                         )}
                       >
-                        TODOS
+                        TODOS LOS COLORES ({colorsForName.length})
                       </button>
-                      {colorsForName.map(color => {
-                        const active = modalFilterColor === color;
-                        return (
-                          <button
-                            key={color}
-                            onClick={() => setModalFilterColor(active ? null : color)}
-                            className={cn(
-                              'px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider border transition-colors',
-                              active
-                                ? 'bg-orange-500 text-white border-orange-500'
-                                : 'border-[var(--border)] opacity-50 hover:opacity-100'
-                            )}
-                          >
-                            {color}
-                          </button>
-                        );
-                      })}
+                      {colorsForName.map(color => (
+                        <button
+                          key={color}
+                          onClick={() => setModalFilterColor(color)}
+                          className={cn(
+                            'px-2 py-0.5 font-mono text-[8px] font-bold uppercase tracking-wider border transition-colors',
+                            modalFilterColor === color
+                              ? 'bg-orange-600 text-white border-orange-600'
+                              : 'border-[var(--border)] opacity-60 hover:opacity-100'
+                          )}
+                        >
+                          {color}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
               );
             })()}
 
-            <div className="p-4 flex flex-col gap-1 overflow-y-auto flex-1">
-              <p className="font-mono text-[9px] opacity-60 uppercase tracking-widest mb-2">
-                INDICA CUÁNTAS PRENDAS ESTÁN DEFECTUOSAS POR CADA MODELO
-              </p>
+            <div className="p-4 overflow-y-auto flex-1 flex flex-col gap-2">
               {receptionModalItems.length === 0 ? (
-                <p className="font-mono text-[10px] opacity-50 text-center py-6">No se encontraron productos en esta recepción</p>
+                <div className="p-8 text-center font-mono text-[10px] opacity-40 uppercase">No hay productos en esta recepción</div>
               ) : (
                 receptionModalItems
-                .filter(({ product }) => {
-                  if (modalFilterName && product?.name !== modalFilterName) return false;
-                  if (modalFilterColor && product?.color !== modalFilterColor) return false;
-                  return true;
-                })
-                .map(({ productId, qty, product }) => {
+                  .filter(item => {
+                    if (modalFilterName && item.product?.name !== modalFilterName) return false;
+                    if (modalFilterColor && item.product?.color !== modalFilterColor) return false;
+                    return true;
+                  })
+                  .map(({ productId, qty, product }) => {
                   const val = defectQtys[productId] ?? '';
-                  const n = parseInt(val, 10);
-                  const invalid = val !== '' && (isNaN(n) || n < 0 || n > qty);
+                  const numVal = parseInt(val, 10);
+                  const invalid = !isNaN(numVal) && (numVal < 0 || numVal > qty);
                   return (
-                    <div key={productId} className="flex items-center gap-3 px-3 py-2.5 border border-[var(--border)] bg-[var(--surface)]">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-mono text-[10px] font-black uppercase truncate">{product?.name} {product?.color} {product?.size}</div>
-                        <div className="font-mono text-[9px] opacity-50">{product?.code} · Recepcionado: {qty} uds</div>
+                    <div key={productId} className="flex items-center justify-between gap-3 border border-[var(--border)]/20 p-2.5 bg-[var(--surface)]">
+                      <div className="min-w-0">
+                        <div className="font-mono text-[10px] font-bold uppercase truncate">{product?.name ?? '-'}</div>
+                        <div className="font-mono text-[8px] opacity-50">{product?.code} · {product?.color} · {product?.size}</div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         <input
                           type="number"
-                          min={0}
+                          min="0"
                           max={qty}
                           value={val}
                           onChange={e => setDefectQtys(prev => ({ ...prev, [productId]: e.target.value }))}
@@ -1895,11 +1910,21 @@ const WriteOffForm: React.FC = () => {
           </div>
         </div>
       )}
+
+      {scanningForKey !== null && (
+        <FamilyQRModal
+          products={products}
+          stockLevels={stockLevels}
+          fromLocation={fromLocation}
+          opType="DISPATCH"
+          onAdd={(items) => setLineItems(prev => [...prev, ...items])}
+          onClose={() => setScanningForKey(null)}
+        />
+      )}
     </form>
   );
 };
 
-// --- QR Scanner ----------------------------------------------------------------
 
 const QRScannerModal: React.FC<{ onClose: () => void; onDetected: (productId: string) => void }> = ({ onClose, onDetected }) => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
