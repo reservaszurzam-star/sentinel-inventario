@@ -26,6 +26,7 @@ import { LocationViewer } from './pages/LocationViewer';
 import { PendingAccess } from './pages/PendingAccess';
 import { QRs } from './pages/QRs';
 import { GlobalScanner } from './components/GlobalScanner';
+import { TouchQRIngest } from './components/TouchQRIngest';
 import { supabase } from './lib/supabase';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { canView } from './lib/permissions';
@@ -113,7 +114,14 @@ function AppContent() {
   if (location.pathname.startsWith('/q/')) {
     return (
       <Routes>
-        <Route path="/q/:model" element={<StockViewer session={session} />} />
+        <Route
+          path="/q/category/:category"
+          element={session ? <TouchQRIngest session={session} isCategory={true} /> : <StockViewer session={session} />}
+        />
+        <Route
+          path="/q/:model"
+          element={session ? <TouchQRIngest session={session} isCategory={false} /> : <StockViewer session={session} />}
+        />
       </Routes>
     );
   }

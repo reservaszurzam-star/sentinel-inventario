@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
 import { FamilyQRModal } from './FamilyQRModal';
+import { TouchQRIngest } from './TouchQRIngest';
 import { cn } from '../lib/utils';
 
 interface CategoryGroup {
@@ -28,6 +29,9 @@ export const CategoryQRsTab: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [showOnlyWithStock, setShowOnlyWithStock] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Modal de ingreso táctil revolucionario
+  const [touchIngestTarget, setTouchIngestTarget] = useState<{ name: string; isCategory: boolean } | null>(null);
 
   // Modal de ingreso rápido abierto para una categoría o modelo
   const [quickIngestQuery, setQuickIngestQuery] = useState<string | null>(null);
@@ -491,25 +495,35 @@ export const CategoryQRsTab: React.FC = () => {
                 </div>
 
                 {/* Action CTA Buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setTouchIngestTarget({ name: group.category, isCategory: true })}
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono text-xs font-black uppercase transition-all shadow-xs active:scale-95"
+                    title="Abre la pantalla táctil rápida optimizada para celular"
+                  >
+                    <Sparkles size={13} />
+                    <span>TÁCTIL</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setQuickIngestQuery(group.category)}
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold uppercase transition-all shadow-xs active:scale-95"
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] font-mono text-xs font-bold uppercase transition-all shadow-xs active:scale-95"
                     title="Abre la matriz Excel con todos los modelos de esta categoría"
                   >
-                    <ArrowDownLeft size={14} />
-                    <span>ABRIR MATRIZ</span>
+                    <ArrowDownLeft size={13} />
+                    <span>MATRIZ</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => printMasterCategoryPoster(group)}
-                    className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] font-mono text-xs font-bold uppercase transition-all active:scale-95"
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl border border-[var(--border)] bg-[var(--bg)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] font-mono text-xs font-bold uppercase transition-all active:scale-95"
                     title="Imprime el cartel A4 con el QR maestro para el almacén"
                   >
-                    <Printer size={14} />
-                    <span>CARTEL A4</span>
+                    <Printer size={13} />
+                    <span>A4</span>
                   </button>
                 </div>
               </div>
@@ -550,20 +564,27 @@ export const CategoryQRsTab: React.FC = () => {
                         <QRCodeSVG value={qrModelVal} size={125} level="Q" includeMargin={false} />
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2 mt-auto">
+                      <div className="grid grid-cols-3 gap-1.5 mt-auto">
+                        <button
+                          type="button"
+                          onClick={() => setTouchIngestTarget({ name: m.name, isCategory: false })}
+                          className="flex items-center justify-center gap-1 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-mono text-[11px] font-black uppercase transition-all"
+                        >
+                          <Sparkles size={11} /> TÁCTIL
+                        </button>
                         <button
                           type="button"
                           onClick={() => setQuickIngestQuery(m.name)}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-bold uppercase transition-all"
+                          className="flex items-center justify-center gap-1 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--bg)] font-mono text-[11px] font-bold uppercase transition-all"
                         >
-                          <ArrowDownLeft size={12} /> INGRESAR
+                          <ArrowDownLeft size={11} /> MATRIZ
                         </button>
                         <button
                           type="button"
                           onClick={() => printModelLabel(group.category, m.name)}
-                          className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] font-mono text-xs font-bold uppercase transition-all"
+                          className="flex items-center justify-center gap-1 py-2 rounded-xl border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] font-mono text-[11px] font-bold uppercase transition-all"
                         >
-                          <Printer size={12} /> IMPRIMIR
+                          <Printer size={11} /> A4
                         </button>
                       </div>
                     </div>
@@ -575,7 +596,7 @@ export const CategoryQRsTab: React.FC = () => {
         </div>
       )}
 
-      {/* ── Quick Ingestion Matrix Modal ─────────────────────────────────── */}
+      {/* ── Quick Ingestion Matrix Modal (Legacy Matrix) ──────────────────── */}
       {quickIngestQuery && (
         <FamilyQRModal
           initialQuery={quickIngestQuery}
@@ -588,6 +609,19 @@ export const CategoryQRsTab: React.FC = () => {
           }}
           onClose={() => setQuickIngestQuery(null)}
         />
+      )}
+
+      {/* ── Revolutionary Touch Ingestion Screen Modal ───────────────────── */}
+      {touchIngestTarget && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <TouchQRIngest
+            session={true}
+            isCategory={touchIngestTarget.isCategory}
+            initialCategory={touchIngestTarget.isCategory ? touchIngestTarget.name : undefined}
+            initialModel={!touchIngestTarget.isCategory ? touchIngestTarget.name : undefined}
+            onClose={() => setTouchIngestTarget(null)}
+          />
+        </div>
       )}
     </div>
   );
