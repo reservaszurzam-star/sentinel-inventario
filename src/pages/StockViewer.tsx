@@ -12,45 +12,7 @@ type VariantStock = {
 };
 
 // Common color names → hex for the chips. Falls back to a neutral tone.
-const COLOR_HEX: Record<string, string> = {
-  BLACK: '#141414', NEGRO: '#141414',
-  WHITE: '#ffffff', BLANCO: '#ffffff',
-  RED: '#dc2626', ROJO: '#dc2626',
-  BLUE: '#2563eb', AZUL: '#2563eb',
-  NAVY: '#1e3a8a',
-  GREEN: '#16a34a', VERDE: '#16a34a',
-  YELLOW: '#eab308', AMARILLO: '#eab308',
-  ORANGE: '#ea580c', NARANJA: '#ea580c',
-  PINK: '#ec4899', ROSA: '#ec4899',
-  PURPLE: '#9333ea', MORADO: '#9333ea',
-  GRAY: '#9ca3af', GRIS: '#9ca3af',
-  GREY: '#9ca3af',
-  BEIGE: '#d6c6a2', BEGE: '#d6c6a2',
-  KHAKI: '#9a8c66', CAQUI: '#9a8c66',
-  BROWN: '#78350f', MARRON: '#78350f', CAFE: '#78350f', COFFEE: '#78350f',
-  BURGUNDY: '#7f1d1d', VINO: '#7f1d1d',
-  OLIVE: '#4d7c0f',
-  SILVER: '#cbd5e1', PLATA: '#cbd5e1',
-  GOLD: '#ca8a04', DORADO: '#ca8a04',
-  CAMEL: '#c19a6b',
-  TAUPE: '#a08c7c',
-  MIXTO: '#b45309',
-  CREAM: '#f5ecd7', CREMA: '#f5ecd7',
-};
-
-function colorToHex(color: string): string {
-  const key = color.trim().toUpperCase().replace(/[ _-]/g, '');
-  return COLOR_HEX[key] ?? '#9ca3af';
-}
-
-function isLightColor(hex: string): boolean {
-  const c = hex.replace('#', '');
-  if (c.length !== 6) return true;
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150;
-}
+import { getColorStyle } from '../lib/colors';
 
 export function StockViewer({ session }: { session: any }) {
   const { model } = useParams();
@@ -259,8 +221,8 @@ export function StockViewer({ session }: { session: any }) {
 
             <div className="flex flex-wrap gap-2 mb-6">
               {colors.map(({ color, total }) => {
-                const hex = colorToHex(color);
-                const light = isLightColor(hex);
+                const style = getColorStyle(color);
+                const light = style.isLight;
                 const selected = selectedColor === color;
                 return (
                   <button
@@ -271,13 +233,13 @@ export function StockViewer({ session }: { session: any }) {
                       selected ? "border-[var(--accent)]" : "border-[var(--border)]",
                     ].join(' ')}
                     style={{
-                      background: hex,
+                      background: style.background,
                       boxShadow: selected
                         ? `0 0 0 2px var(--bg), 0 0 0 4px var(--accent)`
                         : `0 2px 4px var(--border-soft)`,
                     }}
                   >
-                    <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wide" style={{ color: light ? '#141414' : '#ffffff' }}>
+                    <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wide" style={{ color: style.isLight ? '#141414' : '#ffffff' }}>
                       {color}
                     </span>
                     <span

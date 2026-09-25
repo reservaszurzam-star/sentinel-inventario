@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Printer, RefreshCw, Package, Search, Layers } from 'lucide-react';
+import { Printer, RefreshCw, Package, Search, Layers, QrCode, Sparkles } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
+import { ModuleInfo } from '../components/ModuleInfo';
+import { cn } from '../lib/utils';
 
 export function QRs() {
   const { activeBrand, products, stockLevels } = useAppContext();
@@ -74,8 +76,7 @@ export function QRs() {
 
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Print a single model's QR as a physical label (uses the already-rendered QR svg
-  // from that card so we don't need to re-generate it in a blank window).
+  // Print a single model's QR as a physical label
   const printOne = (modelName: string) => {
     const m = qrModels.find(x => x.name === modelName);
     if (!m) return;
@@ -101,8 +102,8 @@ export function QRs() {
           justify-content: center; 
         }
         .a4-page {
-          width: 210mm; /* A4 width */
-          min-height: 297mm; /* A4 height */
+          width: 210mm;
+          min-height: 297mm;
           border: 4px solid #000;
           padding: 40px;
           display: flex;
@@ -193,7 +194,6 @@ export function QRs() {
   };
 
   const handlePrintAll = () => {
-    // Generate A4 pages for all models
     const win = window.open('', '_blank');
     if (!win) return;
     
@@ -253,9 +253,6 @@ export function QRs() {
           justify-content: center;
           background: white;
           page-break-after: always;
-        }
-        .a4-page:last-child {
-          page-break-after: auto;
         }
         .header {
           text-align: center;
@@ -322,128 +319,135 @@ export function QRs() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[var(--bg)] p-4 sm:p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black tracking-widest text-[var(--ink)]">CÓDIGOS QR · MODELOS</h1>
-          <p className="text-sm text-[var(--ink)]/50 tracking-widest uppercase mt-1">
-            Un QR por modelo en inventario ({activeBrand})
-          </p>
+    <div className="w-full max-w-7xl mx-auto space-y-6 pb-12 animate-fade-in">
+      {/* Module Header */}
+      <ModuleInfo
+        number="18"
+        title="Códigos QR por Modelo"
+        description="Generación de etiquetas QR de alta fidelidad. Al escanear desde cualquier smartphone, abre la ficha técnica con stock disponible por talla y color en tiempo real."
+      />
+
+      {/* Main Actions & Toolbar */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 bg-[var(--surface)] border border-[var(--border-soft)] p-4 rounded-3xl shadow-xs no-print">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 sm:max-w-md">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink)]/40" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar modelo textil..."
+              className="input-technical rounded-xl text-xs py-2.5 pl-10 pr-4 w-full"
+            />
+          </div>
+
+          <button
+            onClick={() => setShowOnlyWithStock(v => !v)}
+            className={cn(
+              "px-3.5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all duration-150 border shrink-0 flex items-center gap-2",
+              showOnlyWithStock
+                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30"
+                : "bg-[var(--surface-alt)]/60 border-[var(--border-soft)] text-[var(--ink)]/60 hover:text-[var(--ink)]"
+            )}
+          >
+            <Package size={14} />
+            <span className="hidden md:inline">Solo con Stock</span>
+            <span className="px-1.5 py-0.2 bg-[var(--ink)]/10 rounded-md text-[10px]">{totalWithStock}</span>
+          </button>
         </div>
 
-        <div className="flex gap-2 no-print flex-wrap">
+        <div className="flex items-center gap-2.5 shrink-0">
           <button
             onClick={doRefresh}
-            className="flex items-center gap-2 px-3 py-2 border border-[var(--border)] rounded font-mono text-xs tracking-widest hover:bg-[var(--surface)] transition-colors"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--surface-alt)] font-mono text-xs font-bold text-[var(--ink)]/70 transition-colors shrink-0"
+            title="Actualizar listado"
           >
             <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-            ACTUALIZAR
+            <span className="hidden sm:inline">Actualizar</span>
           </button>
+
           <button 
             onClick={handlePrintAll}
-            className="flex items-center gap-2 px-3 py-2 bg-[var(--accent)] text-[var(--bg)] rounded font-mono text-xs tracking-widest font-bold hover:brightness-110 transition-all"
+            disabled={qrModels.length === 0}
+            className="modern-btn-primary flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs shadow-xs shrink-0 disabled:opacity-50"
           >
-            <Printer size={14} />
-            IMPRIMIR TODOS (A4)
+            <Printer size={15} />
+            <span>Imprimir Todos (A4)</span>
           </button>
         </div>
       </div>
 
-      {/* Toolbar: search + stock filter */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4 no-print">
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-40" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="BUSCAR MODELO..."
-            className="w-full bg-[var(--surface)] border border-[var(--border)]/40 rounded-lg pl-8 pr-3 py-2 font-mono text-xs font-bold uppercase focus:outline-none focus:border-[var(--border)] transition-all"
-          />
-        </div>
-        <button
-          onClick={() => setShowOnlyWithStock(v => !v)}
-          className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg font-mono text-xs font-bold uppercase transition-all border ${
-            showOnlyWithStock
-              ? 'bg-blue-600 text-white border-blue-600'
-              : 'bg-[var(--surface)] border-[var(--border)]/40 text-[var(--ink)] hover:bg-[var(--border)]/10'
-          }`}
-        >
-          <Package size={14} />
-          SOLO CON STOCK ({totalWithStock})
-        </button>
-      </div>
-
-            <div className="font-mono text-[10px] uppercase tracking-widest opacity-50 mb-3">
-        {qrModels.length} modelo{qrModels.length !== 1 ? 's' : ''} {activeBrand}
+      <div className="flex items-center justify-between px-1">
+        <span className="font-mono text-xs text-[var(--ink)]/50 uppercase tracking-wider">
+          {qrModels.length} modelo{qrModels.length !== 1 ? 's' : ''} en catálogo ({activeBrand.replace('_', ' ')})
+        </span>
       </div>
 
       {qrModels.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 text-[var(--ink)]/40">
-          <Layers size={40} />
-          <p className="font-mono text-xs uppercase tracking-widest text-center">
-            No hay modelos en inventario para mostrar
-          </p>
-          <p className="font-mono text-[10px] uppercase tracking-widest opacity-60">
-            Los QRs se generan automáticamente al crear un producto
+        <div className="modern-card p-16 rounded-3xl text-center space-y-3 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--surface-alt)] text-[var(--ink)]/30 flex items-center justify-center mx-auto">
+            <Layers size={28} />
+          </div>
+          <h4 className="font-mono text-sm font-bold text-[var(--ink)]">No hay modelos para mostrar</h4>
+          <p className="font-mono text-xs text-[var(--ink)]/40 max-w-sm mx-auto">
+            No se encontraron prendas con los criterios de búsqueda actuales.
           </p>
         </div>
       ) : (
-        <div className="flex-1 overflow-auto">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-6 print:grid-cols-3 print:gap-3 print:p-0">
-            {qrModels.map((m) => (
-              <div
-                key={m.name}
-                ref={(el) => {
-                  if (el) cardRefs.current.set(m.name, el);
-                  else cardRefs.current.delete(m.name);
-                }}
-                className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 flex flex-col items-center text-center hover:shadow-md transition-shadow print:break-inside-avoid print:border-black print:bg-white"
-              >
-                {/* Model name */}
-                <h3 className="font-mono text-[11px] sm:text-xs font-bold tracking-wide uppercase line-clamp-2 min-h-[32px] mb-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {qrModels.map((m) => (
+            <div
+              key={m.name}
+              ref={(el) => {
+                if (el) cardRefs.current.set(m.name, el);
+                else cardRefs.current.delete(m.name);
+              }}
+              className="modern-card rounded-3xl p-5 flex flex-col items-center justify-between text-center transition-all duration-200 hover:shadow-lg hover:border-[var(--ink)]/30 group"
+            >
+              <div className="w-full">
+                <h3 className="font-mono text-xs font-bold tracking-tight text-[var(--ink)] uppercase line-clamp-2 min-h-[32px] mb-3">
                   {m.name}
                 </h3>
 
-                {/* QR — opens the StockViewer for the model */}
-                <div className="bg-white p-1.5 rounded mb-2 border border-black/5">
+                {/* QR Container */}
+                <div className="p-3 bg-white rounded-2xl shadow-xs border border-slate-100 dark:border-slate-800 mx-auto w-fit mb-3 transition-transform group-hover:scale-105 duration-200">
                   <QRCodeSVG
                     value={getQRValue(m.name)}
-                    size={120}
+                    size={130}
                     level="Q"
                     includeMargin={false}
                   />
                 </div>
 
-                {/* Variants */}
-                <div className="font-mono text-[9px] opacity-60 uppercase tracking-wider mt-1">
-                  {m.variants} variante{(m.variants !== 1) ? 's' : ''}
+                <div className="font-mono text-[10px] text-[var(--ink)]/50 uppercase tracking-wider mb-2">
+                  {m.variants} variante{m.variants !== 1 ? 's' : ''}
                 </div>
+              </div>
 
-                {/* Stock badge */}
-                <div className={`mt-2 w-full rounded-lg border py-1.5 flex items-center justify-center gap-1.5 font-mono text-xs font-black uppercase tracking-wider ${
+              <div className="w-full space-y-2 pt-2 border-t border-[var(--border-soft)]">
+                <div className={cn(
+                  "w-full py-1.5 rounded-xl font-mono text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 border",
                   m.qty > 0
-                    ? 'bg-green-500/10 border-green-500/30 text-green-600'
-                    : 'bg-red-500/10 border-red-500/30 text-red-500'
-                }`}>
-                  <Package size={13} />
-                  {m.qty > 0 ? `${m.qty} uds` : 'sin stock'}
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                    : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-rose-400"
+                )}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${m.qty > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                  <span>{m.qty > 0 ? `${m.qty} unidades` : 'Sin stock'}</span>
                 </div>
 
-                {/* Print one label */}
                 <button
                   onClick={() => printOne(m.name)}
-                  className="no-print no-print-label mt-1 flex items-center justify-center gap-1.5 w-full px-2 py-1.5 border border-[var(--border)] rounded-lg font-mono text-[10px] font-bold uppercase tracking-wider text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--bg)] transition-colors active:scale-95"
+                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl font-mono text-xs font-bold text-[var(--ink)]/70 hover:text-[var(--ink)] bg-[var(--surface-alt)] hover:bg-[var(--ink)]/10 transition-colors"
                 >
-                  <Printer size={12} />
-                  IMPRIMIR
+                  <Printer size={13} />
+                  <span>Imprimir A4</span>
                 </button>
               </div>
+            </div>
           ))}
-          </div>
         </div>
       )}
-      
+
       {/* Estilos para impresión */}
       <style>{`
         @media print {
@@ -452,16 +456,6 @@ export function QRs() {
           }
           .no-print {
             display: none !important;
-          }
-          .print\\:grid-cols-3 {
-            visibility: visible;
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          .print\\:grid-cols-3 * {
-            visibility: visible;
           }
         }
       `}</style>

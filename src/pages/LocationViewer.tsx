@@ -11,37 +11,7 @@ type LocationStock = {
   quantity: number;
 };
 
-// Common color names → hex for the chips.
-const COLOR_HEX: Record<string, string> = {
-  BLACK: '#141414', NEGRO: '#141414',
-  WHITE: '#ffffff', BLANCO: '#ffffff',
-  RED: '#dc2626', ROJO: '#dc2626',
-  BLUE: '#2563eb', AZUL: '#2563eb',
-  GREEN: '#16a34a', VERDE: '#16a34a',
-  YELLOW: '#eab308', AMARILLO: '#eab308',
-  ORANGE: '#ea580c', NARANJA: '#ea580c',
-  PINK: '#ec4899', ROSA: '#ec4899',
-  PURPLE: '#9333ea', MORADO: '#9333ea',
-  GRAY: '#9ca3af', GRIS: '#9ca3af',
-  BEIGE: '#d6c6a2', BEGE: '#d6c6a2',
-  BROWN: '#78350f', MARRON: '#78350f', CAFE: '#78350f',
-  SILVER: '#cbd5e1', PLATA: '#cbd5e1',
-  GOLD: '#ca8a04', DORADO: '#ca8a04',
-};
-
-function colorToHex(color: string): string {
-  const key = color.trim().toUpperCase().replace(/[ _-]/g, '');
-  return COLOR_HEX[key] ?? '#9ca3af';
-}
-
-function isLightColor(hex: string): boolean {
-  const c = hex.replace('#', '');
-  if (c.length !== 6) return true;
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  return (r * 299 + g * 587 + b * 114) / 1000 > 150;
-}
+import { getColorStyle } from '../lib/colors';
 
 export function LocationViewer() {
   const { locationId } = useParams();
@@ -204,14 +174,13 @@ export function LocationViewer() {
                     {/* Variants list */}
                     <div className="p-3 flex flex-col gap-2">
                       {variants.map(v => {
-                        const hex = colorToHex(v.color);
-                        const light = isLightColor(hex);
+                        const style = getColorStyle(v.color);
                         return (
                           <div key={v.productId} className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-2">
                               <span 
                                 className="w-3 h-3 rounded-full border border-[var(--border)]"
-                                style={{ background: hex }}
+                                style={{ background: style.background }}
                               />
                               <span className="font-bold opacity-80">{v.color}</span>
                               <span className="opacity-40">•</span>

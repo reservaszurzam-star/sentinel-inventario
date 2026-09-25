@@ -18,6 +18,7 @@ import { Adjustments } from './pages/Adjustments';
 import { Reports } from './pages/Reports';
 import { Labels } from './pages/Labels';
 import { WarehouseMap } from './pages/WarehouseMap';
+import { Warehouse3D } from './pages/Warehouse3D';
 import { OperationHistory } from './pages/OperationHistory';
 import { LivexFeed } from './pages/LivexFeed';
 import { ResetPassword } from './pages/ResetPassword';
@@ -66,6 +67,7 @@ function AppShell() {
         <Route path="/reports" element={<Guarded moduleId="reports" fallback={homePath}><Reports /></Guarded>} />
         <Route path="/labels" element={<Guarded moduleId="labels" fallback={homePath}><Labels /></Guarded>} />
         <Route path="/warehouse-map" element={<Guarded moduleId="warehouse-map" fallback={homePath}><WarehouseMap /></Guarded>} />
+        <Route path="/warehouse-3d" element={<Guarded moduleId="warehouse-3d" fallback={homePath}><Warehouse3D /></Guarded>} />
         <Route path="/operation-history" element={<Guarded moduleId="operation-history" fallback={homePath}><OperationHistory /></Guarded>} />
         <Route path="/livex-feed" element={<Guarded moduleId="livex-feed" fallback={homePath}><LivexFeed /></Guarded>} />
         <Route path="*" element={<Navigate to={homePath} replace />} />

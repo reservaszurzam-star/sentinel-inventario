@@ -9,7 +9,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'full', contacts: 'full', reports: 'full', labels: 'full',
     'warehouse-map': 'full', users: 'full', 'operation-history': 'full',
     reservations: 'full', 'livex-feed': 'full', qrs: 'full',
-    'product-locations': 'full',
+    'product-locations': 'full', 'warehouse-3d': 'full',
   },
   CEO: {
     dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
@@ -17,7 +17,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'view', contacts: 'full', reports: 'full', labels: 'view',
     'warehouse-map': 'view', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'livex-feed': 'view', qrs: 'view',
-    'product-locations': 'full',
+    'product-locations': 'full', 'warehouse-3d': 'full',
   },
   ADMINISTRADOR: {
     dashboard: 'full', analysis: 'full', inventory: 'full', locations: 'full',
@@ -25,7 +25,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'view', contacts: 'full', reports: 'full', labels: 'view',
     'warehouse-map': 'view', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'livex-feed': 'none', qrs: 'full',
-    'product-locations': 'full',
+    'product-locations': 'full', 'warehouse-3d': 'full',
   },
   JEFE_ALMACEN: {
     dashboard: 'view', analysis: 'view', inventory: 'full', locations: 'full',
@@ -33,21 +33,21 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<Role, Record<string, Permission>> 
     history: 'full', contacts: 'view', reports: 'view', labels: 'none',
     'warehouse-map': 'none', users: 'none', 'operation-history': 'none',
     reservations: 'full', 'livex-feed': 'none', qrs: 'full',
-    'product-locations': 'full',
+    'product-locations': 'full', 'warehouse-3d': 'full',
   },
   DESPACHADOR: {
     dashboard: 'view', analysis: 'none', inventory: 'view', locations: 'view',
     operations: 'full', adjustments: 'none', 'purchase-orders': 'view',
     history: 'view', contacts: 'view', reports: 'none', labels: 'full',
     'warehouse-map': 'view', users: 'none', 'operation-history': 'none',
-    reservations: 'full', 'livex-feed': 'none',
+    reservations: 'full', 'livex-feed': 'none', 'warehouse-3d': 'view',
   },
   LIVEX: {
     dashboard: 'none', analysis: 'none', inventory: 'none', locations: 'none',
     operations: 'none', adjustments: 'none', 'purchase-orders': 'none',
     history: 'none', contacts: 'none', reports: 'none', labels: 'none',
     'warehouse-map': 'none', users: 'none', 'operation-history': 'none',
-    reservations: 'none', 'livex-feed': 'view',
+    reservations: 'none', 'livex-feed': 'view', 'warehouse-3d': 'none',
   },
 };
 

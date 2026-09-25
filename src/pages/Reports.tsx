@@ -38,38 +38,36 @@ function ExportMenu({ onPDF, onPDFEntrega, onExcel, onCSV }: { onPDF: () => void
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 border border-[var(--border)] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-[var(--surface)] transition-all"
+        className="modern-btn px-3.5 py-2 text-xs flex items-center gap-1.5"
       >
-        <Download size={13} /> Exportar <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        <Download size={14} /> Exportar <ChevronDown size={13} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-[var(--bg)] border border-[var(--border)] shadow-[3px_3px_0_var(--border)] min-w-[160px]">
+        <div className="absolute right-0 top-full mt-1.5 z-50 bg-[var(--surface)] border border-[var(--border-soft)] shadow-xl rounded-2xl min-w-[190px] p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150">
           <button
             onClick={() => { onPDF(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-[var(--ink)]/80 hover:text-[var(--ink)] hover:bg-[var(--border-soft)]/50 rounded-xl transition-colors text-left"
           >
-            <FileText size={12} /> PDF (descargar)
+            <FileText size={14} className="text-blue-500" /> PDF Completo
           </button>
-          <div className="border-t border-[var(--border)]/20" />
           <button
             onClick={() => { onPDFEntrega(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-[var(--ink)]/80 hover:text-[var(--ink)] hover:bg-[var(--border-soft)]/50 rounded-xl transition-colors text-left"
           >
-            <FileText size={12} /> PDF Entrega
+            <FileText size={14} className="text-purple-500" /> PDF Entrega
           </button>
-          <div className="border-t border-[var(--border)]/20" />
+          <div className="border-t border-[var(--border-soft)] my-1" />
           <button
             onClick={() => { onExcel(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-[var(--ink)]/80 hover:text-[var(--ink)] hover:bg-[var(--border-soft)]/50 rounded-xl transition-colors text-left"
           >
-            <FileSpreadsheet size={12} /> Excel (.xlsx)
+            <FileSpreadsheet size={14} className="text-emerald-500" /> Excel (.xlsx)
           </button>
-          <div className="border-t border-[var(--border)]/20" />
           <button
             onClick={() => { onCSV(); setOpen(false); }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 font-mono text-[10px] uppercase tracking-widest hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors text-left"
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-[var(--ink)]/80 hover:text-[var(--ink)] hover:bg-[var(--border-soft)]/50 rounded-xl transition-colors text-left"
           >
-            <FileText size={12} /> CSV
+            <FileText size={14} className="text-amber-500" /> Archivo CSV
           </button>
         </div>
       )}
@@ -1231,45 +1229,45 @@ export const Reports: React.FC = () => {
   // --- Render ----------------------------------------------------------------
 
   return (
-    <div className="flex flex-col gap-6 h-full">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 pb-12">
       {/* Modal selección de fechas para PDF Entrega */}
       {showEntregaModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-sm p-6 flex flex-col gap-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-soft)] shadow-2xl rounded-3xl w-full max-w-sm p-6 flex flex-col gap-5">
             <div>
-              <h3 className="font-serif italic font-bold text-sm uppercase tracking-widest">PDF Entrega</h3>
-              <p className="font-mono text-[10px] opacity-60 mt-1 uppercase">Selecciona el rango de fechas del reporte</p>
+              <h3 className="text-base font-black text-[var(--ink)] tracking-tight">Exportar PDF Entrega</h3>
+              <p className="text-xs text-[var(--ink)]/50 mt-0.5">Selecciona el rango de fechas para el reporte</p>
             </div>
             <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Desde</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Desde</label>
                 <input
                   type="date"
                   value={entregaDateFrom}
                   onChange={e => setEntregaDateFrom(e.target.value)}
-                  className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-mono focus:outline-none w-full"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500"
                 />
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Hasta</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Hasta</label>
                 <input
                   type="date"
                   value={entregaDateTo}
                   onChange={e => setEntregaDateTo(e.target.value)}
-                  className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-mono focus:outline-none w-full"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500"
                 />
               </div>
             </div>
-            <div className="flex gap-2 justify-end pt-1">
+            <div className="flex gap-2.5 justify-end pt-2 border-t border-[var(--border-soft)]">
               <button
                 onClick={() => setShowEntregaModal(false)}
-                className="font-mono text-[10px] uppercase tracking-widest px-4 py-2 border border-[var(--border)] hover:bg-[var(--surface)] transition-colors"
+                className="modern-btn px-4 py-2 text-xs uppercase"
               >
                 Cancelar
               </button>
               <button
                 onClick={exportPDFEntrega}
-                className="font-mono text-[10px] uppercase tracking-widest px-4 py-2 bg-[#662d91] text-white hover:bg-[#7b35ad] transition-colors"
+                className="modern-btn-primary px-4 py-2 text-xs uppercase bg-[#662d91] hover:bg-[#7b35ad]"
               >
                 Generar PDF
               </button>
@@ -1279,43 +1277,46 @@ export const Reports: React.FC = () => {
       )}
 
       <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={REPORTS_TUTORIAL_STEPS} title="Reportes" />
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo number="10" title="Reportes" description="Generación y exportación de reportes operativos: inventario actual, movimientos por período, valorización de stock y alertas de stock bajo mínimo." />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
+      
+      {/* Modern Hero Module Header */}
+      <ModuleInfo 
+        number="10" 
+        title="Reportes" 
+        description="Generación y exportación de reportes operativos: inventario valorizado, movimientos por proveedor, auditoría de ajustes y análisis ABC." 
+        onTutorial={() => setShowTutorial(true)} 
+      />
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-        <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">11 // REPORTES</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Exportacion y visualizacion de datos.</p>
-        </div>
+      {/* Modern Action Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-3.5 shadow-sm">
         <div className="flex items-center gap-2">
+          <span className="text-xs font-black uppercase text-[var(--ink)] tracking-wider">
+            {REPORT_TITLES[activeReport]}
+          </span>
+        </div>
+        <div className="flex items-center gap-2.5">
           {activeReport !== 'valuation' && (
-            <div className="flex border border-[var(--border)]">
+            <div className="flex items-center bg-[var(--bg-input)] p-1 rounded-xl border border-[var(--border-soft)] gap-1">
               <button
                 onClick={() => setViewMode('list')}
                 title="Vista lista"
-                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest transition-colors ${viewMode === 'list' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'list' 
+                    ? 'bg-[var(--surface)] text-[var(--ink)] shadow-sm' 
+                    : 'text-[var(--ink)]/50 hover:text-[var(--ink)]'
+                }`}
               >
-                <List size={12} /> Lista
+                <List size={13} /> Lista
               </button>
               <button
                 onClick={() => setViewMode('kanban')}
                 title="Vista kanban"
-                className={`flex items-center gap-1.5 px-3 py-2 font-mono text-[9px] uppercase tracking-widest border-l border-[var(--border)] transition-colors ${viewMode === 'kanban' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  viewMode === 'kanban' 
+                    ? 'bg-[var(--surface)] text-[var(--ink)] shadow-sm' 
+                    : 'text-[var(--ink)]/50 hover:text-[var(--ink)]'
+                }`}
               >
-                <LayoutGrid size={12} /> Kanban
+                <LayoutGrid size={13} /> Kanban
               </button>
             </div>
           )}
@@ -1323,40 +1324,64 @@ export const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* Selector de reporte */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      {/* Selector de reporte (6 modern cards) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {([
-          { id: 'inventory', label: 'Inventario Valorizado', icon: Package },
-          { id: 'movements', label: 'Movimientos Proveedor', icon: ArrowLeftRight },
-          { id: 'valuation', label: 'Valorizacion', icon: BarChart2 },
-          { id: 'adjustments', label: 'Ajustes de Stock', icon: Users },
-          { id: 'abc', label: 'An-lisis ABC', icon: Star },
-          { id: 'aging', label: 'Antig-edad Stock', icon: Clock },
-        ] as const).map(({ id, label, icon: Icon }) => (
-          <button key={id} onClick={() => setActiveReport(id)}
-            className={`flex items-center gap-2 p-3 border text-left transition-all ${activeReport === id ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)] shadow-[2px_2px_0_var(--border)]' : 'border-[var(--border)] bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}>
-            <Icon size={16} className="shrink-0" />
-            <span className="font-mono text-[10px] font-bold uppercase leading-tight">{label}</span>
+          { id: 'inventory', label: 'Inventario Valorizado', desc: 'Existencias y costos', icon: Package, color: 'text-blue-500 bg-blue-500/10' },
+          { id: 'movements', label: 'Mov. Proveedor', desc: 'Recepciones por marca', icon: ArrowLeftRight, color: 'text-violet-500 bg-violet-500/10' },
+          { id: 'valuation', label: 'Valorización', desc: 'Totales y unidades', icon: BarChart2, color: 'text-emerald-500 bg-emerald-500/10' },
+          { id: 'adjustments', label: 'Ajustes de Stock', desc: 'Auditoría física', icon: Users, color: 'text-amber-500 bg-amber-500/10' },
+          { id: 'abc', label: 'Análisis ABC', desc: 'Curva Pareto rotación', icon: Star, color: 'text-pink-500 bg-pink-500/10' },
+          { id: 'aging', label: 'Antigüedad Stock', desc: 'Días sin despacho', icon: Clock, color: 'text-cyan-500 bg-cyan-500/10' },
+        ] as const).map(({ id, label, desc, icon: Icon, color }) => (
+          <button
+            key={id}
+            onClick={() => setActiveReport(id)}
+            className={`flex flex-col gap-2 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+              activeReport === id
+                ? 'bg-[var(--surface)] border-blue-500 shadow-md ring-2 ring-blue-500/20'
+                : 'bg-[var(--surface)] border-[var(--border-soft)] hover:border-blue-500/30 hover:shadow-sm'
+            }`}
+          >
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${color}`}>
+              <Icon size={18} />
+            </div>
+            <div>
+              <span className="text-xs font-black text-[var(--ink)] block uppercase tracking-tight">{label}</span>
+              <span className="text-[10px] text-[var(--ink)]/50 block mt-0.5 leading-snug">{desc}</span>
+            </div>
           </button>
         ))}
       </div>
 
       {/* Filtro de fechas */}
       {(activeReport === 'movements' || activeReport === 'adjustments') && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex flex-col gap-1">
-            <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Desde</label>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-mono focus:outline-none" />
+        <div className="flex items-center gap-3 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-4 shadow-sm flex-wrap">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Desde</label>
+            <input 
+              type="date" 
+              value={dateFrom} 
+              onChange={e => setDateFrom(e.target.value)}
+              className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-1.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500" 
+            />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Hasta</label>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="border border-[var(--border)] bg-[var(--surface)] px-3 py-1.5 text-xs font-mono focus:outline-none" />
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Hasta</label>
+            <input 
+              type="date" 
+              value={dateTo} 
+              onChange={e => setDateTo(e.target.value)}
+              className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-1.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500" 
+            />
           </div>
           {(dateFrom || dateTo) && (
-            <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="font-mono text-[10px] opacity-60 hover:opacity-100 mt-4">? Limpiar</button>
+            <button 
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="modern-btn px-3 py-1.5 text-xs uppercase"
+            >
+              Limpiar filtro
+            </button>
           )}
         </div>
       )}
@@ -1369,69 +1394,73 @@ export const Reports: React.FC = () => {
         {activeReport === 'inventory' && (() => {
           const totalUnits = inventoryRows.reduce((s, r) => s + r.qty, 0);
           return (
-            <table className="w-full text-[10px] font-mono border-collapse">
-              <thead>
-                <tr className="border-b-2 border-[var(--border)]">
-                  <th className="text-left py-2 pr-3 font-bold uppercase">Codigo</th>
-                  <th className="text-left py-2 pr-3 font-bold uppercase">Nombre</th>
-                  <th className="text-left py-2 pr-3 font-bold uppercase">Color</th>
-                  <th className="text-left py-2 pr-3 font-bold uppercase">Talla</th>
-                  <th className="text-right py-2 px-3 font-bold uppercase">Stock</th>
-                  <th className="text-right py-2 pl-3 font-bold uppercase">% Entrada</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inventoryRows.map(r => {
-                  const pct = totalUnits > 0 ? (r.qty / totalUnits) * 100 : 0;
-                  return (
-                    <tr key={r.id} className="border-b border-[var(--border)]/20 hover:bg-[var(--bg-card)]">
-                      <td className="py-1.5 pr-3">{r.code}</td>
-                      <td className="py-1.5 pr-3">{r.name}</td>
-                      <td className="py-1.5 pr-3 opacity-70">{r.color}</td>
-                      <td className="py-1.5 pr-3 opacity-70">{r.size}</td>
-                      <td className="text-right py-1.5 px-3 font-bold">{r.qty}</td>
-                      <td className="text-right py-1.5 pl-3 opacity-70">{pct.toFixed(1)}%</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-[var(--border)]">
-                  <td colSpan={4} className="py-2 pr-3 font-bold uppercase">TOTAL ({inventoryRows.length} SKUs)</td>
-                  <td className="text-right py-2 px-3 font-black">{valuationTotal.units}</td>
-                  <td className="text-right py-2 pl-3 font-black">100%</td>
-                </tr>
-              </tfoot>
-            </table>
+            <div className="data-table-container bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--border-soft)] bg-[var(--bg-input)]/50">
+                    <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Código</th>
+                    <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Nombre</th>
+                    <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Color</th>
+                    <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Talla</th>
+                    <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Stock</th>
+                    <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">% Stock</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inventoryRows.map(r => {
+                    const pct = totalUnits > 0 ? (r.qty / totalUnits) * 100 : 0;
+                    return (
+                      <tr key={r.id} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--bg-input)]/30 transition-colors">
+                        <td className="py-2.5 px-4 font-mono font-bold text-[var(--ink)]">{r.code}</td>
+                        <td className="py-2.5 px-4 font-semibold text-[var(--ink)]">{r.name}</td>
+                        <td className="py-2.5 px-4 text-[var(--ink)]/70">{r.color || '—'}</td>
+                        <td className="py-2.5 px-4 text-[var(--ink)]/70">{r.size || '—'}</td>
+                        <td className="text-right py-2.5 px-4 font-mono font-black text-blue-600 dark:text-blue-400">{r.qty}</td>
+                        <td className="text-right py-2.5 px-4 font-mono text-[var(--ink)]/60">{pct.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-[var(--border-soft)] bg-[var(--bg-input)]/40 font-bold">
+                    <td colSpan={4} className="py-3 px-4 uppercase text-[10px] text-[var(--ink)]/60">TOTAL ({inventoryRows.length} SKUs)</td>
+                    <td className="text-right py-3 px-4 font-mono font-black text-base text-[var(--ink)]">{valuationTotal.units}</td>
+                    <td className="text-right py-3 px-4 font-mono text-[var(--ink)]">100%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           );
         })()}
 
         {activeReport === 'movements' && (
           <div className="flex flex-col gap-6">
             {movementsBySupplier.length === 0
-              ? <div className="text-center font-mono text-xs opacity-50 py-12 uppercase tracking-widest">Sin recepciones en el per-odo</div>
+              ? <div className="text-center text-xs text-[var(--ink)]/50 py-16 uppercase tracking-wider bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl">Sin recepciones registradas en el período</div>
               : movementsBySupplier.map(({ supplier, txs, total }) => (
-                <div key={supplier.id} className="border border-[var(--border)]">
-                  <div className="bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 flex justify-between">
-                    <span className="font-mono font-bold text-xs uppercase">{supplier.name}</span>
-                    <span className="font-mono text-xs">{total} unidades · {txs.length} recepciones</span>
+                <div key={supplier.id} className="border border-[var(--border-soft)] bg-[var(--surface)] rounded-2xl shadow-sm overflow-hidden">
+                  <div className="bg-[var(--bg-input)] px-5 py-3 flex justify-between items-center border-b border-[var(--border-soft)]">
+                    <span className="font-bold text-xs uppercase text-[var(--ink)]">{supplier.name}</span>
+                    <span className="text-xs text-[var(--ink)]/60 font-semibold">{total} unidades · {txs.length} recepciones</span>
                   </div>
-                  <table className="w-full text-[10px] font-mono border-collapse">
-                    <thead><tr className="border-b border-[var(--border)]">
-                      <th className="text-left py-1.5 px-3 font-bold uppercase">Fecha</th>
-                      <th className="text-left py-1.5 px-3 font-bold uppercase">Referencia</th>
-                      <th className="text-left py-1.5 px-3 font-bold uppercase">Producto</th>
-                      <th className="text-right py-1.5 px-3 font-bold uppercase">Qty</th>
-                    </tr></thead>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-[var(--border-soft)]">
+                        <th className="text-left py-2.5 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Fecha</th>
+                        <th className="text-left py-2.5 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Referencia</th>
+                        <th className="text-left py-2.5 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Producto</th>
+                        <th className="text-right py-2.5 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Cantidad</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {txs.map(tx => {
                         const prod = products.find(p => p.id === tx.productId);
                         return (
-                          <tr key={tx.id} className="border-b border-[var(--border)]/20 hover:bg-[var(--bg-card)]">
-                            <td className="py-1.5 px-3">{format(new Date(tx.date), 'dd/MM/yyyy', { locale: es })}</td>
-                            <td className="py-1.5 px-3 opacity-70">{tx.reference}</td>
-                            <td className="py-1.5 px-3">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : tx.productId}</td>
-                            <td className="text-right py-1.5 px-3 font-bold">{tx.quantity}</td>
+                          <tr key={tx.id} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--bg-input)]/20 transition-colors">
+                            <td className="py-2.5 px-4 text-[var(--ink)]/70">{format(new Date(tx.date), 'dd/MM/yyyy', { locale: es })}</td>
+                            <td className="py-2.5 px-4 font-mono text-[var(--ink)]/70">{tx.reference}</td>
+                            <td className="py-2.5 px-4 font-medium text-[var(--ink)]">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : tx.productId}</td>
+                            <td className="text-right py-2.5 px-4 font-mono font-bold text-[var(--ink)]">{tx.quantity}</td>
                           </tr>
                         );
                       })}
@@ -1445,142 +1474,169 @@ export const Reports: React.FC = () => {
         {activeReport === 'valuation' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[
-              { label: 'Total SKUs con stock', value: inventoryRows.length.toString(), sub: 'productos activos' },
-              { label: 'Unidades totales', value: valuationTotal.units.toLocaleString(), sub: 'unidades en almacen' },
-            ].map(({ label, value, sub }) => (
-              <div key={label} className="border border-[var(--border)] bg-[var(--bg-card)] p-5">
-                <div className="font-mono text-[9px] uppercase tracking-widest opacity-60 mb-2">{label}</div>
-                <div className="font-mono font-black text-2xl text-[var(--ink)]">{value}</div>
-                <div className="font-mono text-[9px] opacity-50 mt-1">{sub}</div>
+              { label: 'Total SKUs con stock', value: inventoryRows.length.toString(), sub: 'Productos activos en inventario', icon: Package, color: 'text-blue-500 bg-blue-500/10 border-blue-500/20' },
+              { label: 'Unidades totales disponibles', value: valuationTotal.units.toLocaleString(), sub: 'Prendas registradas en almacenes', icon: BarChart2, color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20' },
+            ].map(({ label, value, sub, icon: Icon, color }) => (
+              <div key={label} className="border border-[var(--border-soft)] bg-[var(--surface)] p-6 rounded-2xl shadow-sm flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] uppercase font-bold tracking-wider text-[var(--ink)]/50 mb-1">{label}</div>
+                  <div className="text-3xl font-black text-[var(--ink)] tracking-tight leading-none">{value}</div>
+                  <div className="text-xs text-[var(--ink)]/60 font-medium mt-1">{sub}</div>
+                </div>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${color}`}>
+                  <Icon size={24} />
+                </div>
               </div>
             ))}
           </div>
         )}
 
         {activeReport === 'adjustments' && (
-          <table className="w-full text-[10px] font-mono border-collapse">
-            <thead>
-              <tr className="border-b-2 border-[var(--border)]">
-                <th className="text-left py-2 pr-3 font-bold uppercase">Fecha</th>
-                <th className="text-left py-2 pr-3 font-bold uppercase">Producto</th>
-                <th className="text-left py-2 pr-3 font-bold uppercase">Ubicacion</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">Antes</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">Despu-s</th>
-                <th className="text-right py-2 px-3 font-bold uppercase">Diff</th>
-                <th className="text-left py-2 px-3 font-bold uppercase">Motivo</th>
-                <th className="text-left py-2 pl-3 font-bold uppercase">Usuario</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAdj.length === 0
-                ? <tr><td colSpan={8} className="text-center py-12 opacity-50 uppercase tracking-widest">Sin ajustes en el per-odo</td></tr>
-                : filteredAdj.map(a => {
-                  const prod = products.find(p => p.id === a.productId);
-                  const loc = locations.find(l => l.id === a.locationId);
-                  const diff = a.newQuantity - a.previousQuantity;
-                  return (
-                    <tr key={a.id} className="border-b border-[var(--border)]/20 hover:bg-[var(--bg-card)]">
-                      <td className="py-1.5 pr-3">{format(new Date(a.date), 'dd/MM/yy HH:mm')}</td>
-                      <td className="py-1.5 pr-3">{prod ? `${prod.code} ${prod.name}` : a.productId}</td>
-                      <td className="py-1.5 pr-3 opacity-70">{loc?.name}</td>
-                      <td className="text-right py-1.5 px-3">{a.previousQuantity}</td>
-                      <td className="text-right py-1.5 px-3 font-bold">{a.newQuantity}</td>
-                      <td className={`text-right py-1.5 px-3 font-bold ${diff > 0 ? 'text-green-700' : diff < 0 ? 'text-red-600' : 'opacity-50'}`}>
-                        {diff > 0 ? `+${diff}` : diff}
-                      </td>
-                      <td className="py-1.5 px-3 opacity-70">{a.reason}</td>
-                      <td className="py-1.5 pl-3 opacity-70">{a.user}</td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        )}
-
-        {activeReport === 'abc' && (
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-3 flex-wrap text-[10px] font-mono font-bold">
-              {(['A','B','C'] as const).map(cls => {
-                const items = abcData.filter(r => r.cls === cls);
-                const colors = { A: 'bg-green-500/15 border-green-700 text-green-600', B: 'bg-amber-500/15 border-amber-700 text-amber-600', C: 'bg-[var(--surface)] border-[var(--border)]' };
-                const pctVol = items.reduce((s, r) => s + r.pct, 0);
-                return (
-                  <div key={cls} className={`border px-3 py-2 ${colors[cls]}`}>
-                    <span className="text-lg font-black">{cls}</span>
-                    <span className="ml-2">{items.length} SKUs · {pctVol.toFixed(1)}% del volumen</span>
-                  </div>
-                );
-              })}
-            </div>
-            <table className="w-full text-[10px] font-mono border-collapse">
+          <div className="data-table-container bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b-2 border-[var(--border)]">
-                  <th className="text-left py-1.5 pr-3 font-bold uppercase">Clase</th>
-                  <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
-                  <th className="text-right py-1.5 px-3 font-bold uppercase">Despachos</th>
-                  <th className="text-right py-1.5 pl-3 font-bold uppercase">% Volumen</th>
+                <tr className="border-b border-[var(--border-soft)] bg-[var(--bg-input)]/50">
+                  <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Fecha</th>
+                  <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Producto</th>
+                  <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Ubicación</th>
+                  <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Antes</th>
+                  <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Después</th>
+                  <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Diff</th>
+                  <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Motivo</th>
+                  <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Usuario</th>
                 </tr>
               </thead>
               <tbody>
-                {abcData.map((r, i) => {
-                  const clsColors = { A: 'text-green-700', B: 'text-amber-700', C: 'opacity-60' };
-                  return (
-                    <tr key={r.prod.id} className={`border-b border-[var(--border)]/15 ${i % 2 === 0 ? '' : 'bg-[var(--surface-alt)]'}`}>
-                      <td className={`py-1.5 pr-3 font-black text-base ${clsColors[r.cls as 'A'|'B'|'C']}`}>{r.cls}</td>
-                      <td className="py-1.5 pr-3">
-                        <span className="font-bold">{r.prod.code}</span>
-                        <span className="opacity-60 ml-2">{r.prod.name} {r.prod.color} {r.prod.size}</span>
-                      </td>
-                      <td className="text-right py-1.5 px-3 font-bold">{r.dispatched}</td>
-                      <td className="text-right py-1.5 pl-3">{r.pct.toFixed(1)}%</td>
-                    </tr>
-                  );
-                })}
-                {abcData.length === 0 && <tr><td colSpan={4} className="text-center py-8 opacity-50">Sin despachos registrados</td></tr>}
+                {filteredAdj.length === 0
+                  ? <tr><td colSpan={8} className="text-center py-16 opacity-50 uppercase tracking-widest text-xs">Sin ajustes registrados en el período</td></tr>
+                  : filteredAdj.map(a => {
+                    const prod = products.find(p => p.id === a.productId);
+                    const loc = locations.find(l => l.id === a.locationId);
+                    const diff = a.newQuantity - a.previousQuantity;
+                    return (
+                      <tr key={a.id} className="border-b border-[var(--border-soft)]/50 hover:bg-[var(--bg-input)]/30 transition-colors">
+                        <td className="py-2.5 px-4 text-[var(--ink)]/70">{format(new Date(a.date), 'dd/MM/yy HH:mm')}</td>
+                        <td className="py-2.5 px-4 font-mono font-bold text-[var(--ink)]">{prod ? `${prod.code} ${prod.name}` : a.productId}</td>
+                        <td className="py-2.5 px-4 text-[var(--ink)]/70">{loc?.name}</td>
+                        <td className="text-right py-2.5 px-4 font-mono">{a.previousQuantity}</td>
+                        <td className="text-right py-2.5 px-4 font-mono font-bold">{a.newQuantity}</td>
+                        <td className={`text-right py-2.5 px-4 font-mono font-black ${diff > 0 ? 'text-emerald-500' : diff < 0 ? 'text-rose-500' : 'opacity-40'}`}>
+                          {diff > 0 ? `+${diff}` : diff}
+                        </td>
+                        <td className="py-2.5 px-4 text-[var(--ink)]/80 font-medium">{a.reason}</td>
+                        <td className="py-2.5 px-4 text-[var(--ink)]/60">{a.user}</td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
         )}
 
+        {activeReport === 'abc' && (
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {(['A','B','C'] as const).map(cls => {
+                const items = abcData.filter(r => r.cls === cls);
+                const colors = { 
+                  A: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400', 
+                  B: 'border-amber-500/20 bg-amber-500/10 text-amber-600 dark:text-amber-400', 
+                  C: 'border-[var(--border-soft)] bg-[var(--surface)] text-[var(--ink)]/70' 
+                };
+                const pctVol = items.reduce((s, r) => s + r.pct, 0);
+                return (
+                  <div key={cls} className={`border p-4 rounded-2xl shadow-sm flex items-center justify-between ${colors[cls]}`}>
+                    <div>
+                      <span className="text-2xl font-black block">Clase {cls}</span>
+                      <span className="text-xs opacity-75 mt-0.5 block">{pctVol.toFixed(1)}% del volumen total</span>
+                    </div>
+                    <span className="text-sm font-bold opacity-80">{items.length} SKUs</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="data-table-container bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--border-soft)] bg-[var(--bg-input)]/50">
+                    <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Clase</th>
+                    <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Producto</th>
+                    <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Despachos</th>
+                    <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">% Volumen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {abcData.map((r, i) => {
+                    const clsColors = { A: 'text-emerald-500 font-black', B: 'text-amber-500 font-black', C: 'opacity-50' };
+                    return (
+                      <tr key={r.prod.id} className={`border-b border-[var(--border-soft)]/50 hover:bg-[var(--bg-input)]/20 ${i % 2 === 0 ? '' : 'bg-[var(--bg-input)]/10'}`}>
+                        <td className={`py-2.5 px-4 font-black text-sm ${clsColors[r.cls as 'A'|'B'|'C']}`}>{r.cls}</td>
+                        <td className="py-2.5 px-4">
+                          <span className="font-mono font-bold text-[var(--ink)]">{r.prod.code}</span>
+                          <span className="text-[var(--ink)]/60 ml-2 font-medium">{r.prod.name} {r.prod.color} {r.prod.size}</span>
+                        </td>
+                        <td className="text-right py-2.5 px-4 font-mono font-bold">{r.dispatched}</td>
+                        <td className="text-right py-2.5 px-4 font-mono text-[var(--ink)]/60">{r.pct.toFixed(1)}%</td>
+                      </tr>
+                    );
+                  })}
+                  {abcData.length === 0 && <tr><td colSpan={4} className="text-center py-12 opacity-50 uppercase tracking-widest">Sin despachos registrados</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {activeReport === 'aging' && (
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="font-mono text-[9px] font-bold uppercase opacity-60">Mostrar stock sin movimiento en mas de</span>
-              {[15, 30, 60, 90].map(d => (
-                <button key={d} onClick={() => setAgingDays(d)}
-                  className={`px-3 py-1 text-[9px] font-bold font-mono uppercase border border-[var(--border)] transition-colors ${agingDays === d ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}>
-                  {d}D
-                </button>
-              ))}
-            </div>
-            <table className="w-full text-[10px] font-mono border-collapse">
-              <thead>
-                <tr className="border-b-2 border-[var(--border)]">
-                  <th className="text-left py-1.5 pr-3 font-bold uppercase">Producto</th>
-                  <th className="text-right py-1.5 px-3 font-bold uppercase">Stock</th>
-                  <th className="text-right py-1.5 px-3 font-bold uppercase">ultimo despacho</th>
-                  <th className="text-right py-1.5 pl-3 font-bold uppercase">D-as sin movimiento</th>
-                </tr>
-              </thead>
-              <tbody>
-                {agingData.map((r, i) => (
-                  <tr key={r.prod.id} className={`border-b border-[var(--border)]/15 ${i % 2 === 0 ? '' : 'bg-[var(--surface-alt)]'}`}>
-                    <td className="py-1.5 pr-3">
-                      <span className="font-bold">{r.prod.code}</span>
-                      <span className="opacity-60 ml-2">{r.prod.name} {r.prod.color} {r.prod.size}</span>
-                    </td>
-                    <td className="text-right py-1.5 px-3 font-bold">{r.stock}</td>
-                    <td className="text-right py-1.5 px-3 opacity-70">
-                      {r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '-'}
-                    </td>
-                    <td className={`text-right py-1.5 pl-3 font-bold ${r.daysSince !== null && r.daysSince >= 90 ? 'text-red-600' : r.daysSince !== null && r.daysSince >= 30 ? 'text-amber-700' : ''}`}>
-                      {r.daysSince !== null ? r.daysSince : 'Sin despachos'}
-                    </td>
-                  </tr>
+            <div className="flex items-center gap-2 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-3 shadow-sm flex-wrap">
+              <span className="text-xs font-bold text-[var(--ink)]/50 uppercase tracking-wider mr-2">Sin despacho en más de:</span>
+              <div className="flex items-center gap-1.5">
+                {[15, 30, 60, 90].map(d => (
+                  <button 
+                    key={d} 
+                    onClick={() => setAgingDays(d)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase transition-all ${
+                      agingDays === d 
+                        ? 'bg-blue-600 text-white shadow-sm' 
+                        : 'bg-[var(--bg-input)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]'
+                    }`}
+                  >
+                    {d} DÍAS
+                  </button>
                 ))}
-                {agingData.length === 0 && <tr><td colSpan={4} className="text-center py-8 opacity-50">No hay productos estancados con ese criterio</td></tr>}
-              </tbody>
-            </table>
+              </div>
+            </div>
+            <div className="data-table-container bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-[var(--border-soft)] bg-[var(--bg-input)]/50">
+                    <th className="text-left py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Producto</th>
+                    <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Stock</th>
+                    <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Último Despacho</th>
+                    <th className="text-right py-3 px-4 font-bold uppercase text-[10px] text-[var(--ink)]/50">Días sin movimiento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agingData.map((r, i) => (
+                    <tr key={r.prod.id} className={`border-b border-[var(--border-soft)]/50 hover:bg-[var(--bg-input)]/20 ${i % 2 === 0 ? '' : 'bg-[var(--bg-input)]/10'}`}>
+                      <td className="py-2.5 px-4">
+                        <span className="font-mono font-bold text-[var(--ink)]">{r.prod.code}</span>
+                        <span className="text-[var(--ink)]/60 ml-2 font-medium">{r.prod.name} {r.prod.color} {r.prod.size}</span>
+                      </td>
+                      <td className="text-right py-2.5 px-4 font-mono font-black text-blue-600 dark:text-blue-400">{r.stock}</td>
+                      <td className="text-right py-2.5 px-4 text-[var(--ink)]/60 font-mono">
+                        {r.lastDispatch ? format(new Date(r.lastDispatch), 'dd/MM/yyyy') : '—'}
+                      </td>
+                      <td className={`text-right py-2.5 px-4 font-mono font-bold ${r.daysSince !== null && r.daysSince >= 90 ? 'text-rose-500' : r.daysSince !== null && r.daysSince >= 30 ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        {r.daysSince !== null ? `${r.daysSince} d` : 'Sin despachos'}
+                      </td>
+                    </tr>
+                  ))}
+                  {agingData.length === 0 && <tr><td colSpan={4} className="text-center py-12 opacity-50 uppercase tracking-widest">No hay productos estancados con ese criterio</td></tr>}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

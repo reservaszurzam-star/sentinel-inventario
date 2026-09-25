@@ -8,21 +8,22 @@ import { TutorialModal, ADJUSTMENTS_TUTORIAL_STEPS } from '../components/Tutoria
 import { canEdit } from '../lib/permissions';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '../lib/utils';
 
 const REASON_LABEL: Record<AdjustmentReason, string> = {
-  DAMAGE: 'DANO / ROTURA',
-  LOSS: 'MERMA / PERDIDA',
-  COUNT: 'CONTEO FISICO',
-  RETURN: 'DEVOLUCION',
+  DAMAGE: 'DAÑO / ROTURA',
+  LOSS: 'MERMA / PÉRDIDA',
+  COUNT: 'CONTEO FÍSICO',
+  RETURN: 'DEVOLUCIÓN',
   OTHER: 'OTRO',
 };
 
 const REASON_COLOR: Record<AdjustmentReason, string> = {
-  DAMAGE: 'border-red-600 text-red-700',
-  LOSS: 'border-orange-600 text-orange-700',
-  COUNT: 'border-blue-600 text-blue-700',
-  RETURN: 'border-green-700 text-green-700',
-  OTHER: 'border-[var(--border-soft)] text-[var(--ink-50)]',
+  DAMAGE: 'border-red-500/30 text-red-600 bg-red-500/10',
+  LOSS: 'border-orange-500/30 text-orange-600 bg-orange-500/10',
+  COUNT: 'border-blue-500/30 text-blue-600 bg-blue-500/10',
+  RETURN: 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10',
+  OTHER: 'border-[var(--border-soft)] text-[var(--ink-50)] bg-[var(--ink)]/5',
 };
 
 const VALID_REASONS: Record<string, AdjustmentReason> = {
@@ -57,9 +58,9 @@ const STATUS_LABEL: Record<AdjustmentStatus, string> = {
 };
 
 const STATUS_COLOR: Record<AdjustmentStatus, string> = {
-  PENDING: 'border-amber-500 text-amber-600 bg-amber-500/10',
-  APPROVED: 'border-green-700 text-green-700 bg-green-500/10',
-  REJECTED: 'border-red-600 text-red-600 bg-red-500/10',
+  PENDING: 'border-amber-500/30 text-amber-600 bg-amber-500/10',
+  APPROVED: 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10',
+  REJECTED: 'border-red-500/30 text-red-600 bg-red-500/10',
 };
 
 export const Adjustments: React.FC = () => {
@@ -77,6 +78,12 @@ export const Adjustments: React.FC = () => {
   const canAdjust = canEdit(currentUser.role, 'adjustments');
   const canReview = currentUser.role === 'ADMIN_GENERAL';
   const pendingAdjustments = adjustments.filter(a => a.status === 'PENDING');
+
+  const diffColor = (prev: number, next: number) => {
+    if (next > prev) return 'text-emerald-600 dark:text-emerald-400 font-bold';
+    if (next < prev) return 'text-red-600 font-bold';
+    return 'opacity-50';
+  };
 
   const handleApprove = async (id: string) => {
     setReviewBusy(id);
@@ -156,7 +163,7 @@ export const Adjustments: React.FC = () => {
     e.preventDefault();
     if (!selName) { setError('Selecciona un producto'); return; }
     if (!form.productId) { setError('Selecciona color y talla para identificar el SKU'); return; }
-    if (!form.locationId) { setError('Selecciona una ubicacion'); return; }
+    if (!form.locationId) { setError('Selecciona una ubicación'); return; }
     if (form.newQuantity < 0) { setError('La cantidad no puede ser negativa'); return; }
     addAdjustment({
       productId: form.productId,
@@ -222,10 +229,10 @@ export const Adjustments: React.FC = () => {
         : 0;
 
       let error: string | null = null;
-      if (!code) error = 'Codigo vacio';
-      else if (!prod) error = `Codigo "${code}" no encontrado`;
-      else if (isNaN(qty) || qty < 0) error = 'Cantidad invalida';
-      else if (!loc) error = `Ubicacion "${locationName}" no encontrada`;
+      if (!code) error = 'Código vacío';
+      else if (!prod) error = `Código "${code}" no encontrado`;
+      else if (isNaN(qty) || qty < 0) error = 'Cantidad inválida';
+      else if (!loc) error = `Ubicación "${locationName}" no encontrada`;
 
       return {
         line: i + 2,
@@ -299,7 +306,6 @@ export const Adjustments: React.FC = () => {
     const defaultLoc = locations[0]?.name ?? '';
     const wb = XLSX.utils.book_new();
 
-    // Group products by name, one sheet per product
     const productNames = Array.from(new Set<string>(products.map(p => p.name))).sort();
     productNames.forEach(name => {
       const variants = products.filter(p => p.name === name);
@@ -335,32 +341,27 @@ export const Adjustments: React.FC = () => {
       }
     });
 
-    // Reference sheets
-    if (mode === 'adjust') {
-      const wsMotivos = XLSX.utils.json_to_sheet(Object.entries(REASON_LABEL).map(([k, v]) => ({ clave: k, descripcion: v })));
-      wsMotivos['!cols'] = [{ wch: 14 }, { wch: 22 }];
-      XLSX.utils.book_append_sheet(wb, wsMotivos, 'Motivos');
-    }
-    const wsLocs = XLSX.utils.json_to_sheet(locations.map(l => ({ nombre: l.name, tipo: l.type })));
-    wsLocs['!cols'] = [{ wch: 30 }, { wch: 14 }];
+    const reasonsData = Object.entries(REASON_LABEL).map(([code, label]) => ({ codigo: code, descripcion: label }));
+    const wsReasons = XLSX.utils.json_to_sheet(reasonsData);
+    wsReasons['!cols'] = [{ wch: 12 }, { wch: 24 }];
+    XLSX.utils.book_append_sheet(wb, wsReasons, 'Motivos');
+
+    const locsData = locations.map(l => ({ nombre: l.name, tipo: l.type }));
+    const wsLocs = XLSX.utils.json_to_sheet(locsData);
+    wsLocs['!cols'] = [{ wch: 28 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, wsLocs, 'Ubicaciones');
 
-    XLSX.writeFile(wb, mode === 'adjust' ? 'ajuste_masivo_inventario.xlsx' : 'ingreso_masivo_almacen.xlsx');
+    XLSX.writeFile(wb, mode === 'adjust' ? 'plantilla_ajuste_masivo.xlsx' : 'plantilla_ingreso_masivo.xlsx');
   };
 
-  // --- Pagination & filter ---
-  const filtered = adjustments.filter(a =>
-    (filterReason === 'ALL' || a.reason === filterReason) &&
-    (filterStatus === 'ALL' || a.status === filterStatus)
-  );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const filtered = adjustments.filter(a => {
+    if (filterReason !== 'ALL' && a.reason !== filterReason) return false;
+    if (filterStatus !== 'ALL' && a.status !== filterStatus) return false;
+    return true;
+  });
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  const diffColor = (prev: number, next: number) => {
-    if (next > prev) return 'text-green-700';
-    if (next < prev) return 'text-red-600';
-    return 'text-[var(--ink-50)]';
-  };
 
   const openBulk = (mode: BulkMode) => {
     setBulkMode(mode);
@@ -373,87 +374,94 @@ export const Adjustments: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 h-full relative">
       <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={ADJUSTMENTS_TUTORIAL_STEPS} title="Ajustes" />
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo number="08" title="Ajustes de Inventario" description="Correcciones manuales de stock con motivo obligatorio. Permite incrementar o decrementar unidades de cualquier SKU con trazabilidad completa." />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-        <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">10 // AJUSTES_INVENTARIO</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Correcciones de stock con motivo y trazabilidad.</p>
-        </div>
+      
+      <ModuleInfo
+        number="08"
+        title="Ajustes de Inventario"
+        description="Correcciones manuales de stock con motivo obligatorio. Permite incrementar o decrementar unidades de cualquier SKU con trazabilidad completa."
+        onTutorial={() => setShowTutorial(true)}
+      />
+
+      {/* Filter and Actions Bar */}
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value as any); setPage(1); }}
-            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+          <select
+            value={filterStatus}
+            onChange={e => { setFilterStatus(e.target.value as any); setPage(1); }}
+            className="border border-[var(--border-soft)] bg-[var(--surface)] rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold uppercase focus:outline-none cursor-pointer shadow-xs"
+          >
             <option value="ALL">TODOS LOS ESTADOS</option>
-            {(Object.keys(STATUS_LABEL) as AdjustmentStatus[]).map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
+            {(Object.keys(STATUS_LABEL) as AdjustmentStatus[]).map(s => (
+              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+            ))}
           </select>
-          <select value={filterReason} onChange={e => { setFilterReason(e.target.value as any); setPage(1); }}
-            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
+          <select
+            value={filterReason}
+            onChange={e => { setFilterReason(e.target.value as any); setPage(1); }}
+            className="border border-[var(--border-soft)] bg-[var(--surface)] rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold uppercase focus:outline-none cursor-pointer shadow-xs"
+          >
             <option value="ALL">TODOS LOS MOTIVOS</option>
-            {(Object.keys(REASON_LABEL) as AdjustmentReason[]).map(r => <option key={r} value={r}>{REASON_LABEL[r]}</option>)}
+            {(Object.keys(REASON_LABEL) as AdjustmentReason[]).map(r => (
+              <option key={r} value={r}>{REASON_LABEL[r]}</option>
+            ))}
           </select>
-          {canAdjust && (
-            <>
-              <button onClick={() => openBulk('reception')}
-                className="flex items-center gap-2 border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--bg-input)] transition-all">
-                <PackagePlus size={14} /> INGRESO MASIVO
-              </button>
-              <button onClick={() => openBulk('adjust')}
-                className="flex items-center gap-2 border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--bg-input)] transition-all">
-                <SlidersHorizontal size={14} /> AJUSTE MASIVO
-              </button>
-              <button onClick={openAdd}
-                className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all border border-[var(--border)]">
-                <Plus size={14} /> NUEVO AJUSTE
-              </button>
-            </>
-          )}
         </div>
+
+        {canAdjust && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => openBulk('reception')}
+              className="flex items-center gap-2 border border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-card)] rounded-xl px-3.5 py-2.5 text-xs font-bold font-mono uppercase shadow-xs transition-all cursor-pointer"
+            >
+              <PackagePlus size={14} /> INGRESO MASIVO
+            </button>
+            <button
+              onClick={() => openBulk('adjust')}
+              className="flex items-center gap-2 border border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-card)] rounded-xl px-3.5 py-2.5 text-xs font-bold font-mono uppercase shadow-xs transition-all cursor-pointer"
+            >
+              <SlidersHorizontal size={14} /> AJUSTE MASIVO
+            </button>
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 text-xs font-bold font-mono uppercase shadow-xs hover:shadow-md transition-all cursor-pointer active:scale-[0.98]"
+            >
+              <Plus size={14} /> NUEVO AJUSTE
+            </button>
+          </div>
+        )}
       </div>
 
       {canReview && pendingAdjustments.length > 0 && (
-        <div className="border-2 border-amber-500 bg-amber-500/5 flex flex-col gap-3 p-4">
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 md:p-5 flex flex-col gap-3 shadow-xs">
           <div className="flex items-center gap-2">
-            <Clock size={14} className="text-amber-600" />
-            <span className="font-mono font-bold text-xs uppercase tracking-widest text-amber-700">
-              {pendingAdjustments.length} AJUSTE{pendingAdjustments.length !== 1 ? 'S' : ''} PENDIENTE{pendingAdjustments.length !== 1 ? 'S' : ''} DE APROBACION
+            <Clock size={16} className="text-amber-600" />
+            <span className="font-mono font-bold text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400">
+              {pendingAdjustments.length} AJUSTE{pendingAdjustments.length !== 1 ? 'S' : ''} PENDIENTE{pendingAdjustments.length !== 1 ? 'S' : ''} DE APROBACIÓN
             </span>
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             {pendingAdjustments.map(adj => {
               const prod = products.find(p => p.id === adj.productId);
               const loc = locations.find(l => l.id === adj.locationId);
               const diff = adj.newQuantity - adj.previousQuantity;
               const busy = reviewBusy === adj.id;
               return (
-                <div key={adj.id} className="border border-[var(--border)] bg-[var(--bg-card)] flex items-center justify-between gap-3 p-3 flex-wrap">
-                  <div className="flex items-center gap-3 min-w-0 flex-wrap">
-                    <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${REASON_COLOR[adj.reason]}`}>{REASON_LABEL[adj.reason]}</span>
+                <div key={adj.id} className="border border-[var(--border-soft)] bg-[var(--surface)] rounded-xl p-3.5 flex items-center justify-between gap-3 flex-wrap shadow-xs">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                    <span className={`font-mono text-[9px] font-bold border rounded-full px-2.5 py-0.5 shrink-0 ${REASON_COLOR[adj.reason]}`}>{REASON_LABEL[adj.reason]}</span>
                     <span className="font-mono font-bold text-xs truncate">{prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : adj.productId}</span>
-                    <span className="font-mono text-[10px] opacity-60 shrink-0">{loc?.name}</span>
+                    <span className="font-mono text-[10px] opacity-60 shrink-0">({loc?.name})</span>
                     <span className={`font-mono font-bold text-xs shrink-0 ${diffColor(adj.previousQuantity, adj.newQuantity)}`}>{adj.previousQuantity} → {adj.newQuantity} ({diff > 0 ? `+${diff}` : diff})</span>
                     <span className="font-mono text-[9px] opacity-50 shrink-0">por {adj.user}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button disabled={busy} onClick={() => handleApprove(adj.id)}
-                      className="flex items-center gap-1 bg-green-700 text-white px-3 py-1.5 text-[10px] font-mono font-bold uppercase hover:bg-green-800 transition-all disabled:opacity-40">
-                      <Check size={12} /> APROBAR
+                      className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-1.5 text-[10px] font-mono font-bold uppercase transition-all disabled:opacity-40 cursor-pointer shadow-xs">
+                      <Check size={13} /> APROBAR
                     </button>
                     <button disabled={busy} onClick={() => openReject(adj.id)}
-                      className="flex items-center gap-1 border border-red-600 text-red-600 px-3 py-1.5 text-[10px] font-mono font-bold uppercase hover:bg-red-600 hover:text-white transition-all disabled:opacity-40">
-                      <XIcon size={12} /> RECHAZAR
+                      className="flex items-center gap-1.5 border border-red-500/30 text-red-500 rounded-lg px-3 py-1.5 text-[10px] font-mono font-bold uppercase hover:bg-red-600 hover:text-white transition-all disabled:opacity-40 cursor-pointer">
+                      <XIcon size={13} /> RECHAZAR
                     </button>
                   </div>
                 </div>
@@ -464,9 +472,12 @@ export const Adjustments: React.FC = () => {
       )}
 
       {filtered.length === 0 && (
-        <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest">Sin ajustes registrados</div>
+        <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest rounded-2xl border border-dashed border-[var(--border-soft)] bg-[var(--surface)]">
+          Sin ajustes registrados
+        </div>
       )}
 
+      {/* Adjustments Cards */}
       <div className="flex flex-col gap-3">
         {paginated.map(adj => {
           const prod = products.find(p => p.id === adj.productId);
@@ -475,19 +486,19 @@ export const Adjustments: React.FC = () => {
           const isExp = expanded === adj.id;
 
           return (
-            <div key={adj.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
+            <div key={adj.id} className="border border-[var(--border-soft)] rounded-2xl bg-[var(--surface)] hover:border-blue-500/30 transition-all shadow-xs overflow-hidden backdrop-blur-md">
               <div className="flex items-center justify-between gap-4 p-4 cursor-pointer" onClick={() => setExpanded(isExp ? null : adj.id)}>
-                <div className="flex items-center gap-3 min-w-0 flex-wrap">
-                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${STATUS_COLOR[adj.status]}`}>
+                <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                  <span className={`font-mono text-[9px] font-bold border rounded-full px-2.5 py-0.5 shrink-0 ${STATUS_COLOR[adj.status]}`}>
                     {STATUS_LABEL[adj.status]}
                   </span>
-                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${REASON_COLOR[adj.reason]}`}>
+                  <span className={`font-mono text-[9px] font-bold border rounded-full px-2.5 py-0.5 shrink-0 ${REASON_COLOR[adj.reason]}`}>
                     {REASON_LABEL[adj.reason]}
                   </span>
                   <span className="font-mono font-bold text-xs text-[var(--ink)] truncate">
                     {prod ? `${prod.code} ${prod.name} ${prod.color || ''} ${prod.size || ''}`.trim() : adj.productId}
                   </span>
-                  <span className="font-mono text-[10px] opacity-60 shrink-0">{loc?.name}</span>
+                  <span className="font-mono text-[10px] opacity-60 shrink-0 font-medium">({loc?.name})</span>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
                   <div className="text-right">
@@ -496,11 +507,11 @@ export const Adjustments: React.FC = () => {
                       {diff > 0 ? `+${diff}` : diff}
                     </div>
                   </div>
-                  {isExp ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {isExp ? <ChevronUp size={15} className="opacity-60" /> : <ChevronDown size={15} className="opacity-60" />}
                 </div>
               </div>
               {isExp && (
-                <div className="border-t border-[var(--border)] px-4 py-3 flex flex-wrap gap-4 text-[10px] font-mono">
+                <div className="border-t border-[var(--border-soft)] bg-[var(--bg-card)] px-5 py-3.5 flex flex-wrap gap-4 text-[11px] font-mono">
                   <div><span className="opacity-50 uppercase">Fecha:</span> <span className="font-bold">{format(new Date(adj.date), 'dd MMM yyyy HH:mm', { locale: es })}</span></div>
                   <div><span className="opacity-50 uppercase">Usuario:</span> <span className="font-bold">{adj.user}</span></div>
                   {adj.status !== 'PENDING' && adj.reviewedBy && (
@@ -520,26 +531,29 @@ export const Adjustments: React.FC = () => {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2">
-          <span className="font-mono text-[10px] opacity-50">
+          <span className="font-mono text-[10px] opacity-60 font-bold">
             {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} de {filtered.length}
           </span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-              className="border border-[var(--border)] px-3 py-1.5 text-[10px] font-mono font-bold disabled:opacity-30 hover:bg-[var(--bg-input)] transition-all">
-              ?
+              className="border border-[var(--border-soft)] rounded-lg px-3 py-1.5 text-xs font-mono font-bold disabled:opacity-30 hover:bg-[var(--surface)] transition-all cursor-pointer">
+              ←
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1).map((p, idx, arr) => (
               <React.Fragment key={p}>
-                {idx > 0 && arr[idx - 1] !== p - 1 && <span className="font-mono text-[10px] opacity-30 px-1">…</span>}
+                {idx > 0 && arr[idx - 1] !== p - 1 && <span className="font-mono text-xs opacity-30 px-1">…</span>}
                 <button onClick={() => setPage(p)}
-                  className={`border px-3 py-1.5 text-[10px] font-mono font-bold transition-all ${p === page ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] hover:bg-[var(--bg-input)]'}`}>
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-mono font-bold transition-all cursor-pointer',
+                    p === page ? 'bg-blue-600 text-white' : 'border border-[var(--border-soft)] hover:bg-[var(--surface)]'
+                  )}>
                   {p}
                 </button>
               </React.Fragment>
             ))}
             <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-              className="border border-[var(--border)] px-3 py-1.5 text-[10px] font-mono font-bold disabled:opacity-30 hover:bg-[var(--bg-input)] transition-all">
-              ?
+              className="border border-[var(--border-soft)] rounded-lg px-3 py-1.5 text-xs font-mono font-bold disabled:opacity-30 hover:bg-[var(--surface)] transition-all cursor-pointer">
+              →
             </button>
           </div>
         </div>
@@ -551,10 +565,18 @@ export const Adjustments: React.FC = () => {
           {(Object.keys(REASON_LABEL) as AdjustmentReason[]).map(r => {
             const count = adjustments.filter(a => a.reason === r).length;
             return (
-              <div key={r} className={`border p-3 cursor-pointer transition-all ${filterReason === r ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}
-                onClick={() => { setFilterReason(filterReason === r ? 'ALL' : r); setPage(1); }}>
-                <div className="font-mono text-[18px] font-black">{count}</div>
-                <div className="font-mono text-[8px] uppercase tracking-widest opacity-70 mt-0.5">{REASON_LABEL[r]}</div>
+              <div
+                key={r}
+                className={cn(
+                  'border rounded-2xl p-4 cursor-pointer transition-all shadow-xs backdrop-blur-md',
+                  filterReason === r
+                    ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--ink)] shadow-md'
+                    : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-card)] hover:border-blue-500/30'
+                )}
+                onClick={() => { setFilterReason(filterReason === r ? 'ALL' : r); setPage(1); }}
+              >
+                <div className="font-mono text-2xl font-black">{count}</div>
+                <div className="font-mono text-[9px] uppercase tracking-wider opacity-70 mt-1 font-bold">{REASON_LABEL[r]}</div>
               </div>
             );
           })}
@@ -563,28 +585,31 @@ export const Adjustments: React.FC = () => {
 
       {/* Single adjustment modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-md">
-            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center">
-              <span className="font-mono font-bold text-xs uppercase tracking-widest">NUEVO AJUSTE DE INVENTARIO</span>
-              <button onClick={() => setShowModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-modal)] border border-[var(--border-soft)] rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="border-b border-[var(--border-soft)] px-5 py-3.5 flex justify-between items-center bg-[var(--surface)]">
+              <span className="font-mono font-bold text-xs uppercase tracking-wider">NUEVO AJUSTE DE INVENTARIO</span>
+              <button onClick={() => setShowModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center font-mono text-sm opacity-60 hover:opacity-100 cursor-pointer">✕</button>
             </div>
             <form onSubmit={handleSubmit} className="p-5 flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Producto *</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Producto *</label>
                 <select value={selName} onChange={e => handleNameChange(e.target.value)}
-                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
+                  className="input-technical cursor-pointer" required>
                   <option value="">Seleccionar producto...</option>
                   {uniqueNames.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
               {selName && colorsForName.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Color</label>
+                  <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Color</label>
                   <div className="flex flex-wrap gap-1.5">
                     {colorsForName.map(c => (
                       <button key={c} type="button" onClick={() => handleColorChange(selColor === c ? '' : c)}
-                        className={`px-3 py-1.5 text-[10px] font-mono font-bold uppercase border transition-all ${selColor === c ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                        className={cn(
+                          'px-3 py-1.5 text-[10px] font-mono font-bold uppercase rounded-lg border transition-all cursor-pointer',
+                          selColor === c ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                        )}>
                         {c}
                       </button>
                     ))}
@@ -593,11 +618,14 @@ export const Adjustments: React.FC = () => {
               )}
               {selName && uniqueSizes.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Talla</label>
+                  <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Talla</label>
                   <div className="flex flex-wrap gap-1.5">
                     {uniqueSizes.map(s => (
                       <button key={s} type="button" onClick={() => handleSizeChange(s)}
-                        className={`min-w-[40px] px-3 py-1.5 text-[10px] font-mono font-bold uppercase border transition-all ${selSize === s ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                        className={cn(
+                          'min-w-[40px] px-3 py-1.5 text-[10px] font-mono font-bold uppercase rounded-lg border transition-all cursor-pointer',
+                          selSize === s ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                        )}>
                         {s}
                       </button>
                     ))}
@@ -607,49 +635,49 @@ export const Adjustments: React.FC = () => {
               {form.productId && (() => {
                 const p = products.find(x => x.id === form.productId);
                 return p ? (
-                  <div className="bg-[var(--surface)] border border-[var(--border)]/30 px-3 py-2 font-mono text-[10px] text-[var(--ink)] font-bold uppercase">
+                  <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl px-3.5 py-2 font-mono text-[11px] text-[var(--ink)] font-bold uppercase shadow-xs">
                     {p.code} · {p.name} {p.color} {p.size}
                   </div>
                 ) : null;
               })()}
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Ubicacion *</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Ubicación *</label>
                 <select value={form.locationId} onChange={e => setForm(f => ({ ...f, locationId: e.target.value }))}
-                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer" required>
+                  className="input-technical cursor-pointer" required>
                   <option value="">Seleccionar...</option>
                   {locations.map(l => <option key={l.id} value={l.id}>{l.name} ({l.type})</option>)}
                 </select>
               </div>
-              <div className="bg-[var(--surface)] border border-[var(--border)]/30 px-4 py-3 flex justify-between items-center">
-                <span className="font-mono text-[10px] opacity-60 uppercase">Stock actual en ubicacion</span>
-                <span className="font-mono font-black text-lg">{currentStock}</span>
+              <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl px-4 py-3 flex justify-between items-center shadow-xs">
+                <span className="font-mono text-[10px] opacity-60 uppercase font-bold">Stock actual en ubicación</span>
+                <span className="font-mono font-black text-xl text-blue-600 dark:text-blue-400">{currentStock}</span>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Nueva cantidad *</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Nueva cantidad *</label>
                 <input type="number" min="0" value={form.newQuantity} onChange={e => setForm(f => ({ ...f, newQuantity: parseInt(e.target.value) || 0 }))}
-                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-sm font-mono font-bold focus:outline-none focus:shadow-[2px_2px_0_var(--border)] text-center" required />
+                  className="input-technical text-center text-sm font-bold" required />
                 {form.newQuantity !== currentStock && (
-                  <div className={`font-mono text-[10px] font-bold text-center ${form.newQuantity > currentStock ? 'text-green-700' : 'text-red-600'}`}>
+                  <div className={`font-mono text-[10px] font-bold text-center ${form.newQuantity > currentStock ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600'}`}>
                     Diferencia: {form.newQuantity > currentStock ? '+' : ''}{form.newQuantity - currentStock} unidades
                   </div>
                 )}
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Motivo *</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Motivo *</label>
                 <select value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value as AdjustmentReason }))}
-                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none cursor-pointer">
+                  className="input-technical cursor-pointer">
                   {(Object.entries(REASON_LABEL) as [AdjustmentReason, string][]).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Notas</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Notas</label>
                 <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={2}
-                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none resize-none" />
+                  className="input-technical resize-none" placeholder="Opcional..." />
               </div>
               {error && <p className="font-mono text-[10px] text-red-600 font-bold">{error}</p>}
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all">SOLICITAR AJUSTE</button>
-                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">CANCELAR</button>
+                <button type="submit" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-xs font-bold font-mono uppercase shadow-xs transition-all cursor-pointer">SOLICITAR AJUSTE</button>
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 border border-[var(--border-soft)] rounded-xl py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)] transition-all cursor-pointer">CANCELAR</button>
               </div>
             </form>
           </div>
@@ -658,43 +686,42 @@ export const Adjustments: React.FC = () => {
 
       {/* Bulk modal */}
       {showBulkModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-3xl max-h-[90vh] flex flex-col">
-            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-modal)] border border-[var(--border-soft)] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="border-b border-[var(--border-soft)] px-5 py-3.5 flex justify-between items-center shrink-0 bg-[var(--surface)]">
               <div className="flex items-center gap-3">
                 {bulkMode === 'reception'
-                  ? <PackagePlus size={14} className="opacity-60" />
-                  : <SlidersHorizontal size={14} className="opacity-60" />}
-                <span className="font-mono font-bold text-xs uppercase tracking-widest">
-                  {bulkMode === 'reception' ? 'INGRESO MASIVO AL ALMACEN' : 'AJUSTE MASIVO DE INVENTARIO'}
+                  ? <PackagePlus size={16} className="text-emerald-600 dark:text-emerald-400" />
+                  : <SlidersHorizontal size={16} className="text-blue-600 dark:text-blue-400" />}
+                <span className="font-mono font-bold text-xs uppercase tracking-wider">
+                  {bulkMode === 'reception' ? 'INGRESO MASIVO AL ALMACÉN' : 'AJUSTE MASIVO DE INVENTARIO'}
                 </span>
               </div>
-              <button onClick={() => setShowBulkModal(false)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
+              <button onClick={() => setShowBulkModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center font-mono text-sm opacity-60 hover:opacity-100 cursor-pointer">✕</button>
             </div>
 
             <div className="p-5 flex flex-col gap-4 overflow-y-auto">
-              {/* Mode explanation */}
-              <div className={`border px-3 py-2 text-[9px] font-mono leading-relaxed ${bulkMode === 'reception' ? 'border-green-600 bg-green-500/10 text-green-600' : 'border-blue-600 bg-blue-500/10 text-blue-600'}`}>
+              <div className={`rounded-xl border px-3.5 py-2.5 text-[10px] font-mono leading-relaxed ${bulkMode === 'reception' ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-400'}`}>
                 {bulkMode === 'reception'
-                  ? 'INGRESO: suma las unidades al stock existente. Genera una transaccion de RECEPCION visible en el historial.'
-                  : 'AJUSTE: queda como solicitud PENDIENTE hasta que ADMIN_GENERAL la apruebe. Util para conteos fisicos y correcciones.'}
+                  ? 'INGRESO: suma las unidades al stock existente. Genera una transacción de RECEPCIÓN visible en el historial.'
+                  : 'AJUSTE: queda como solicitud PENDIENTE hasta que ADMIN_GENERAL la apruebe. Útil para conteos físicos y correcciones.'}
               </div>
 
               {/* Instructions */}
-              <div className="bg-[var(--bg-card)] border border-[var(--border)]/20 p-3 flex flex-col gap-1.5">
-                <p className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">
+              <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl p-4 flex flex-col gap-2 shadow-xs">
+                <p className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">
                   Columnas del archivo: {bulkMode === 'reception'
                     ? 'codigo | cantidad_a_ingresar | ubicacion | notas'
                     : 'codigo | nueva_cantidad | motivo | ubicacion | notas'}
                 </p>
-                <p className="font-mono text-[9px] opacity-50 leading-relaxed">
-                  La plantilla incluye todos los productos del catalogo con su stock actual.<br />
-                  {bulkMode === 'adjust' && 'Motivos: COUNT, DAMAGE, LOSS, RETURN, OTHER (o en espanol). '}
-                  Deja vacia la cantidad si no quieres modificar ese producto.
+                <p className="font-mono text-[10px] opacity-60 leading-relaxed">
+                  La plantilla incluye todos los productos del catálogo con su stock actual.<br />
+                  {bulkMode === 'adjust' && 'Motivos: COUNT, DAMAGE, LOSS, RETURN, OTHER (o en español). '}
+                  Deja vacía la cantidad si no deseas modificar ese producto.
                 </p>
                 <button onClick={() => downloadTemplate(bulkMode)}
-                  className="self-start flex items-center gap-1.5 border border-[var(--border)] px-3 py-1.5 text-[9px] font-mono font-bold uppercase hover:bg-[var(--bg-input)] transition-all mt-1">
-                  <Download size={11} /> Descargar plantilla Excel
+                  className="self-start flex items-center gap-1.5 border border-[var(--border-soft)] rounded-lg px-3 py-1.5 text-[10px] font-mono font-bold uppercase bg-[var(--bg-card)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all mt-1 cursor-pointer">
+                  <Download size={12} /> Descargar plantilla Excel
                 </button>
               </div>
 
@@ -703,9 +730,9 @@ export const Adjustments: React.FC = () => {
                 <>
                   <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleBulkFile} />
                   <button onClick={() => fileRef.current?.click()}
-                    className="w-full border-2 border-dashed border-[var(--border)]/40 py-6 flex flex-col items-center gap-2 hover:border-[var(--border)] hover:bg-[var(--surface-alt)] transition-all cursor-pointer bg-[var(--surface-alt)]">
-                    <Upload size={20} className="opacity-40" />
-                    <span className="font-mono text-[10px] uppercase tracking-widest opacity-60">Haz click para seleccionar el archivo Excel (.xlsx)</span>
+                    className="w-full border-2 border-dashed border-[var(--border-soft)] rounded-2xl py-8 flex flex-col items-center gap-2 hover:border-blue-500 hover:bg-[var(--surface)] transition-all cursor-pointer bg-[var(--surface-alt)]">
+                    <Upload size={24} className="opacity-40 text-blue-500" />
+                    <span className="font-mono text-xs uppercase tracking-wider font-semibold opacity-70">Haz clic para seleccionar el archivo Excel (.xlsx)</span>
                   </button>
                 </>
               )}
@@ -714,102 +741,98 @@ export const Adjustments: React.FC = () => {
               {bulkRows.length > 0 && !bulkDone && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[9px] uppercase tracking-widest opacity-60">
-                      {bulkRows.filter(r => !r.error).length} validas · {bulkRows.filter(r => r.error).length} con errores
+                    <span className="font-mono text-[10px] uppercase tracking-wider opacity-60 font-bold">
+                      {bulkRows.filter(r => !r.error).length} válidas · {bulkRows.filter(r => r.error).length} con errores
                     </span>
                     <button onClick={() => fileRef.current?.click()}
-                      className="font-mono text-[9px] uppercase tracking-widest underline opacity-60 hover:opacity-100">
+                      className="font-mono text-[10px] uppercase tracking-wider underline opacity-60 hover:opacity-100 cursor-pointer">
                       Cambiar archivo
                     </button>
                   </div>
 
-                  {/* Impact summary */}
                   {bulkImpact.validCount > 0 && (
-                    <div className="border-2 border-[var(--border)] bg-[var(--surface)] p-3 flex flex-col gap-2">
-                      <span className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-70">Resumen de impacto</span>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-[8px] opacity-50 uppercase">Filas a procesar</span>
-                          <span className="font-mono font-black text-lg">{bulkImpact.validCount}</span>
+                    <div className="border border-[var(--border-soft)] rounded-2xl bg-[var(--surface)] p-4 flex flex-col gap-2.5 shadow-xs">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-wider opacity-70">Resumen de impacto</span>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="flex flex-col bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-soft)]/50">
+                          <span className="font-mono text-[9px] opacity-60 uppercase font-bold">Filas a procesar</span>
+                          <span className="font-mono font-black text-xl">{bulkImpact.validCount}</span>
                         </div>
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-mono text-[8px] opacity-50 uppercase">
+                        <div className="flex flex-col bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-soft)]/50">
+                          <span className="font-mono text-[9px] opacity-60 uppercase font-bold">
                             {bulkMode === 'reception' ? 'Unidades a ingresar' : 'Impacto neto en stock'}
                           </span>
-                          <span className={`font-mono font-black text-lg ${bulkImpact.netDiff > 0 ? 'text-green-700' : bulkImpact.netDiff < 0 ? 'text-red-600' : ''}`}>
+                          <span className={`font-mono font-black text-xl ${bulkImpact.netDiff > 0 ? 'text-emerald-600 dark:text-emerald-400' : bulkImpact.netDiff < 0 ? 'text-red-600' : ''}`}>
                             {bulkImpact.netDiff > 0 ? `+${bulkImpact.netDiff}` : bulkImpact.netDiff}
                           </span>
                         </div>
                         {bulkMode === 'adjust' && (
                           <>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-mono text-[8px] opacity-50 uppercase">Suben stock</span>
-                              <span className="font-mono font-black text-lg text-green-700">{bulkImpact.increases}</span>
+                            <div className="flex flex-col bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-soft)]/50">
+                              <span className="font-mono text-[9px] opacity-60 uppercase font-bold">Suben stock</span>
+                              <span className="font-mono font-black text-xl text-emerald-600 dark:text-emerald-400">{bulkImpact.increases}</span>
                             </div>
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-mono text-[8px] opacity-50 uppercase">Bajan stock</span>
-                              <span className="font-mono font-black text-lg text-red-600">{bulkImpact.decreases}</span>
+                            <div className="flex flex-col bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-soft)]/50">
+                              <span className="font-mono text-[9px] opacity-60 uppercase font-bold">Bajan stock</span>
+                              <span className="font-mono font-black text-xl text-red-600">{bulkImpact.decreases}</span>
                             </div>
                           </>
                         )}
                       </div>
                       {bulkMode === 'adjust' && (
-                        <div className="flex flex-wrap gap-1.5 pt-1 border-t border-[var(--border)]/20">
+                        <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border-soft)]">
                           {(Object.keys(REASON_LABEL) as AdjustmentReason[]).filter(r => bulkImpact.byReason[r] > 0).map(r => (
-                            <span key={r} className={`font-mono text-[9px] font-bold border px-2 py-0.5 ${REASON_COLOR[r]}`}>
+                            <span key={r} className={`font-mono text-[9px] font-bold border rounded-full px-2.5 py-0.5 ${REASON_COLOR[r]}`}>
                               {REASON_LABEL[r]}: {bulkImpact.byReason[r]}
                             </span>
                           ))}
                         </div>
                       )}
-                      {bulkMode === 'adjust' && (
-                        <p className="font-mono text-[8px] opacity-50 italic">Estas solicitudes quedarán PENDIENTES hasta que ADMIN_GENERAL las apruebe una por una.</p>
-                      )}
                     </div>
                   )}
 
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)]">
                     <table className="w-full text-[10px] font-mono border-collapse">
                       <thead>
-                        <tr className="border-b border-[var(--border)]">
-                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide w-8">#</th>
-                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Codigo</th>
-                          <th className="text-right py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Stock actual</th>
-                          <th className="text-right py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">
+                        <tr className="border-b border-[var(--border-soft)] bg-[var(--bg-sidebar)]">
+                          <th className="text-left py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider w-8">#</th>
+                          <th className="text-left py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider">Código</th>
+                          <th className="text-right py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider">Stock actual</th>
+                          <th className="text-right py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider">
                             {bulkMode === 'reception' ? 'A ingresar' : 'Nueva cant.'}
                           </th>
                           {bulkMode === 'reception' && (
-                            <th className="text-right py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Stock final</th>
+                            <th className="text-right py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider">Stock final</th>
                           )}
                           {bulkMode === 'adjust' && (
-                            <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Motivo</th>
+                            <th className="text-left py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider">Motivo</th>
                           )}
-                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Ubicacion</th>
-                          <th className="text-left py-1.5 px-2 opacity-50 font-bold uppercase tracking-wide">Estado</th>
+                          <th className="text-left py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider">Ubicación</th>
+                          <th className="text-left py-2 px-2.5 opacity-60 font-bold uppercase tracking-wider">Estado</th>
                         </tr>
                       </thead>
                       <tbody>
                         {bulkRows.map(r => (
-                          <tr key={r.line} className={`border-b border-[var(--border)]/10 ${r.error ? 'bg-red-500/10' : 'bg-[var(--surface-alt)]'}`}>
-                            <td className="py-1.5 px-2 opacity-40">{r.line}</td>
-                            <td className="py-1.5 px-2 font-bold">{r.code}</td>
-                            <td className="py-1.5 px-2 text-right opacity-60">{r.stockActual}</td>
-                            <td className={`py-1.5 px-2 text-right font-bold ${!r.error && bulkMode === 'reception' ? 'text-green-700' : ''}`}>
+                          <tr key={r.line} className={`border-b border-[var(--border-soft)]/40 ${r.error ? 'bg-red-500/10' : 'bg-[var(--surface)]'}`}>
+                            <td className="py-2 px-2.5 opacity-40">{r.line}</td>
+                            <td className="py-2 px-2.5 font-bold">{r.code}</td>
+                            <td className="py-2 px-2.5 text-right opacity-60">{r.stockActual}</td>
+                            <td className={`py-2 px-2.5 text-right font-bold ${!r.error && bulkMode === 'reception' ? 'text-emerald-600' : ''}`}>
                               {bulkMode === 'reception' ? `+${r.qty}` : r.qty}
                             </td>
                             {bulkMode === 'reception' && (
-                              <td className="py-1.5 px-2 text-right font-bold">
+                              <td className="py-2 px-2.5 text-right font-bold">
                                 {!r.error ? r.stockActual + r.qty : '-'}
                               </td>
                             )}
                             {bulkMode === 'adjust' && (
-                              <td className="py-1.5 px-2 opacity-70">{REASON_LABEL[r.reason]}</td>
+                              <td className="py-2 px-2.5 opacity-70">{REASON_LABEL[r.reason]}</td>
                             )}
-                            <td className="py-1.5 px-2 opacity-70 max-w-[140px] truncate">{r.locationName || '-'}</td>
-                            <td className="py-1.5 px-2">
+                            <td className="py-2 px-2.5 opacity-70 max-w-[140px] truncate">{r.locationName || '-'}</td>
+                            <td className="py-2 px-2.5">
                               {r.error
-                                ? <span className="flex items-center gap-1 text-red-600"><XCircle size={11} />{r.error}</span>
-                                : <span className="flex items-center gap-1 text-green-700"><CheckCircle size={11} />OK</span>}
+                                ? <span className="flex items-center gap-1 text-red-600"><XCircle size={12} />{r.error}</span>
+                                : <span className="flex items-center gap-1 text-emerald-600 font-bold"><CheckCircle size={12} />OK</span>}
                             </td>
                           </tr>
                         ))}
@@ -818,21 +841,21 @@ export const Adjustments: React.FC = () => {
                   </div>
 
                   {bulkRows.some(r => r.error) && (
-                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-300 px-3 py-2">
-                      <AlertCircle size={13} className="text-amber-600 mt-0.5 shrink-0" />
-                      <p className="font-mono text-[9px] text-amber-700">Las filas con errores seran ignoradas. Solo se procesaran las filas validas.</p>
+                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3.5 py-2.5">
+                      <AlertCircle size={15} className="text-amber-600 mt-0.5 shrink-0" />
+                      <p className="font-mono text-[10px] text-amber-700 dark:text-amber-400">Las filas con errores serán ignoradas. Solo se procesarán las filas válidas.</p>
                     </div>
                   )}
 
                   <div className="flex gap-2 pt-1">
                     <button onClick={confirmBulk} disabled={bulkRows.every(r => !!r.error)}
-                      className="flex-1 bg-[var(--ink)] text-[var(--ink-inv)] py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all disabled:opacity-30 disabled:cursor-not-allowed">
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 text-xs font-bold font-mono uppercase shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer">
                       {bulkMode === 'reception'
                         ? `INGRESAR ${bulkRows.filter(r => !r.error).length} PRODUCTOS`
                         : `SOLICITAR ${bulkRows.filter(r => !r.error).length} AJUSTES`}
                     </button>
                     <button onClick={() => setShowBulkModal(false)}
-                      className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
+                      className="flex-1 border border-[var(--border-soft)] rounded-xl py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)] transition-all cursor-pointer">
                       CANCELAR
                     </button>
                   </div>
@@ -842,12 +865,12 @@ export const Adjustments: React.FC = () => {
               {/* Success */}
               {bulkDone && (
                 <div className="flex flex-col items-center gap-3 py-8">
-                  <CheckCircle size={36} className="text-green-700" />
-                  <p className="font-mono font-bold text-sm uppercase tracking-widest">
-                    {bulkMode === 'reception' ? `${bulkApplied} productos ingresados al almacen` : `${bulkApplied} ajustes enviados a aprobacion`}
+                  <CheckCircle size={40} className="text-emerald-600" />
+                  <p className="font-mono font-bold text-sm uppercase tracking-wide">
+                    {bulkMode === 'reception' ? `${bulkApplied} productos ingresados al almacén` : `${bulkApplied} ajustes enviados a aprobación`}
                   </p>
                   <button onClick={() => setShowBulkModal(false)}
-                    className="bg-[var(--ink)] text-[var(--ink-inv)] px-6 py-2 text-xs font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all mt-2">
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-6 py-2.5 text-xs font-bold font-mono uppercase shadow-xs transition-all mt-2 cursor-pointer">
                     CERRAR
                   </button>
                 </div>
@@ -859,27 +882,27 @@ export const Adjustments: React.FC = () => {
 
       {/* Reject modal */}
       {rejectingId && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-sm">
-            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center">
-              <span className="font-mono font-bold text-xs uppercase tracking-widest">RECHAZAR AJUSTE</span>
-              <button onClick={() => setRejectingId(null)} className="font-mono text-xs opacity-60 hover:opacity-100">
-                <XIcon size={14} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-modal)] border border-red-500/30 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
+            <div className="border-b border-red-500/20 bg-red-500/10 px-5 py-3.5 flex justify-between items-center text-red-600">
+              <span className="font-mono font-bold text-xs uppercase tracking-wider">RECHAZAR AJUSTE</span>
+              <button onClick={() => setRejectingId(null)} className="w-7 h-7 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 cursor-pointer">
+                <XIcon size={15} />
               </button>
             </div>
             <div className="p-5 flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60">Motivo del rechazo (opcional)</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="font-mono text-[9px] font-bold uppercase tracking-wider opacity-70">Motivo del rechazo (opcional)</label>
                 <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3}
-                  className="border border-[var(--border)] bg-[var(--bg-input)] px-3 py-2 text-xs font-mono focus:outline-none resize-none"
-                  placeholder="Ej: cantidad no coincide con el conteo fisico" />
+                  className="input-technical resize-none"
+                  placeholder="Ej: cantidad no coincide con el conteo físico" />
               </div>
               <div className="flex gap-2">
                 <button onClick={confirmReject} disabled={reviewBusy === rejectingId}
-                  className="flex-1 bg-red-700 text-white py-2 text-xs font-bold font-mono uppercase hover:bg-red-800 transition-all disabled:opacity-40">
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl py-2.5 text-xs font-bold font-mono uppercase transition-all disabled:opacity-40 shadow-xs cursor-pointer">
                   CONFIRMAR RECHAZO
                 </button>
-                <button onClick={() => setRejectingId(null)} className="flex-1 border border-[var(--border)] py-2 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)]">
+                <button onClick={() => setRejectingId(null)} className="flex-1 border border-[var(--border-soft)] rounded-xl py-2.5 text-xs font-bold font-mono uppercase hover:bg-[var(--surface)] cursor-pointer">
                   CANCELAR
                 </button>
               </div>

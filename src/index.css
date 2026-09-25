@@ -12,8 +12,8 @@
   --bg:          #E4E3E0;
   --bg-sidebar:  #D4D3D0;
   --bg-header:   #E4E3E0;
-  --bg-card:     rgba(255,255,255,0.4);
-  --bg-card-alt: rgba(255,255,255,0.6);
+  --bg-card:     rgba(255,255,255,0.55);
+  --bg-card-alt: rgba(255,255,255,0.75);
   --bg-input:    #ffffff;
   --bg-modal:    #f5f4f1;
   --ink:         #141414;
@@ -21,11 +21,11 @@
   --ink-50:      rgba(20,20,20,0.5);
   --ink-20:      rgba(20,20,20,0.2);
   --border:      #141414;
-  --border-soft: rgba(20,20,20,0.15);
+  --border-soft: rgba(20,20,20,0.14);
   --row-hover:   rgba(255,255,255,0.85);
   --row-bg:      rgba(255,255,255,0.4);
-  --surface:     rgba(255,255,255,0.5);
-  --surface-alt: rgba(255,255,255,0.3);
+  --surface:     rgba(255,255,255,0.55);
+  --surface-alt: rgba(255,255,255,0.35);
   --table-foot:  #f0efec;
   --scrollbar-track: #E4E3E0;
   
@@ -39,7 +39,7 @@
   --danger-red:    #dc2626;
   --success-green: #16a34a;
 
-  /* legacy aliases (keep for components that still use them) */
+  /* legacy aliases */
   --bg-color:    var(--bg);
   --card-bg:     var(--bg-card);
   --card-border: var(--border);
@@ -51,22 +51,22 @@
 /* ── Dark mode ── */
 .dark {
   --bg:          #0f0f0f;
-  --bg-sidebar:  #1a1a1a;
-  --bg-header:   #141414;
+  --bg-sidebar:  #161616;
+  --bg-header:   #121212;
   --bg-card:     rgba(255,255,255,0.04);
   --bg-card-alt: rgba(255,255,255,0.08);
-  --bg-input:    #242424;
-  --bg-modal:    #1c1c1c;
+  --bg-input:    #202020;
+  --bg-modal:    #181818;
   --ink:         #E4E3E0;
   --ink-inv:     #0f0f0f;
   --ink-50:      rgba(228,227,224,0.5);
   --ink-20:      rgba(228,227,224,0.12);
-  --border:      #3a3a3a;
-  --border-soft: rgba(228,227,224,0.1);
+  --border:      #333333;
+  --border-soft: rgba(228,227,224,0.12);
   --row-hover:   rgba(255,255,255,0.07);
-  --row-bg:      rgba(255,255,255,0.03);
+  --row-bg:      rgba(255,255,255,0.025);
   --surface:     rgba(255,255,255,0.05);
-  --surface-alt: rgba(255,255,255,0.06);
+  --surface-alt: rgba(255,255,255,0.07);
   --table-foot:  #151515;
   --scrollbar-track: #0f0f0f;
 
@@ -138,41 +138,95 @@ body {
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--border-soft);
 }
-::-webkit-scrollbar-thumb { background: var(--ink); }
-::-webkit-scrollbar-thumb:hover { background: var(--ink-50); }
+::-webkit-scrollbar-thumb { 
+  background: var(--ink-50); 
+  border-radius: 4px; 
+}
+::-webkit-scrollbar-thumb:hover { background: var(--ink); }
 
+/* ── Modern Data Tables ── */
 .data-table-container {
-  border: 1px solid var(--border);
-  background: transparent;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  border-radius: 14px;
   overflow: hidden;
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(8px);
 }
 
 .data-row {
   display: grid;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.1s ease;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 0.15s ease;
   background: var(--row-bg);
 }
 .data-row:last-child { border-bottom: none; }
 .data-row:hover { background: var(--row-hover); }
 
 .data-header {
-  font-family: var(--font-serif);
-  font-size: 11px;
-  font-weight: bold;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
   color: var(--ink);
-  letter-spacing: 0.1em;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
+  opacity: 0.85;
+  letter-spacing: 0.08em;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-soft);
   background: var(--bg-sidebar);
 }
 
+/* ── Modern Technical Inputs (Light & Dark theme aware) ── */
+.input-technical {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 9px 12px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+}
+.input-technical:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ── Modern Card & UI Helpers ── */
+.modern-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.05);
+  backdrop-filter: blur(12px);
+  transition: all 0.2s ease-in-out;
+}
+.modern-card:hover {
+  border-color: var(--border);
+  box-shadow: 0 8px 30px -4px rgba(0, 0, 0, 0.08);
+}
+
+.modern-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  padding: 0.2rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 /* ── Theme-aware Tailwind helpers ── */
-/* Use these classes instead of bg-[var(--ink)] / bg-[var(--bg)] in new code */
 .theme-bg       { background-color: var(--bg); }
 .theme-sidebar  { background-color: var(--bg-sidebar); }
 .theme-header   { background-color: var(--bg-header); }
@@ -180,17 +234,17 @@ body {
 .theme-ink      { color: var(--ink); }
 .theme-ink-inv  { color: var(--ink-inv); }
 .theme-border   { border-color: var(--border); }
-
+.theme-border-soft { border-color: var(--border-soft); }
 
 /* ── SAAS / BENTO UI ── */
 :root {
-  --bento-radius: 12px;
-  --bento-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-  --bento-border: #e5e7eb;
+  --bento-radius: 14px;
+  --bento-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+  --bento-border: rgba(20,20,20,0.12);
 }
 .dark {
-  --bento-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
-  --bento-border: #374151;
+  --bento-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.4);
+  --bento-border: rgba(255,255,255,0.12);
 }
 
 .saas-card {
@@ -198,15 +252,16 @@ body {
   border-radius: var(--bento-radius);
   box-shadow: var(--bento-shadow);
   border: 1px solid var(--bento-border);
+  backdrop-filter: blur(8px);
 }
 
 .saas-pill {
   border-radius: 9999px;
-  padding: 2px 10px;
+  padding: 3px 12px;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -222,7 +277,6 @@ body {
   overscroll-behavior-y: none;
 }
 
-/* Larger, thumb-friendly tap targets on small screens */
 @media (max-width: 640px) {
   button, [role='button'], select, input, a {
     touch-action: manipulation;
@@ -230,12 +284,10 @@ body {
   .data-row { padding: 12px; }
 }
 
-/* Respect notches / safe areas on phones */
 @supports (padding: max(0px)) {
   .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0.75rem); }
 }
 
-/* Prevent horizontal overflow from wide modals/tables on phones */
 @media (max-width: 640px) {
   .overflow-guard { overflow-x: auto; }
 }

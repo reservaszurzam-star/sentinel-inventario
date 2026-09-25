@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, X, Edit2, MapPin, Trash2, AlertTriangle, QrCode, ChevronLeft } from 'lucide-react';
+import { Search, Plus, X, Edit2, MapPin, Trash2, AlertTriangle, QrCode, ChevronLeft, Boxes } from 'lucide-react';
 import { QRModal } from '../components/QRModal';
 import { Location } from '../types';
 import { cn } from '../lib/utils';
@@ -62,7 +62,7 @@ export const Locations: React.FC = () => {
       });
       setShowAddModal(false);
       setNewLocation({ name: '', type: 'ZONE' });
-      showFeedback('success', 'UBICACION REGISTRADA CORRECTAMENTE');
+      showFeedback('success', 'UBICACIÓN REGISTRADA CORRECTAMENTE');
     }
   };
 
@@ -73,7 +73,7 @@ export const Locations: React.FC = () => {
       setShowEditModal(false);
       setEditingLocation(null);
       setInitialEditingLocation(null);
-      showFeedback('success', 'UBICACION ACTUALIZADA CORRECTAMENTE');
+      showFeedback('success', 'UBICACIÓN ACTUALIZADA CORRECTAMENTE');
     }
   };
 
@@ -129,7 +129,7 @@ export const Locations: React.FC = () => {
   const confirmSave = () => {
     if (editingLocation && editingLocation.name) {
       updateLocation(editingLocation);
-      showFeedback('success', 'UBICACION ACTUALIZADA CORRECTAMENTE');
+      showFeedback('success', 'UBICACIÓN ACTUALIZADA CORRECTAMENTE');
     }
     setShowDiscardModal(false);
     setShowEditModal(false);
@@ -150,7 +150,7 @@ export const Locations: React.FC = () => {
     if (!deletingLocationId) return;
     try {
       deleteLocation(deletingLocationId);
-      showFeedback('success', 'UBICACION ELIMINADA');
+      showFeedback('success', 'UBICACIÓN ELIMINADA');
     } catch (err: any) {
       showFeedback('error', err.message);
     }
@@ -217,66 +217,60 @@ export const Locations: React.FC = () => {
   return (
     <div className="flex flex-col gap-6 h-full relative">
       <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={LOCATIONS_TUTORIAL_STEPS} title="Ubicaciones" />
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo number="06" title="Ubicaciones" description="Gestión de la estructura física del almacén: define zonas, estantes y ubicaciones donde se almacenan los productos con control de capacidad." />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
+      
+      <ModuleInfo
+        number="06"
+        title="Ubicaciones"
+        description="Gestión de la estructura física del almacén: define zonas, racks y estantes con control de capacidad e inventario en tiempo real."
+        onTutorial={() => setShowTutorial(true)}
+      />
+
       {feedback && (
-        <div className={cn("absolute top-0 right-0 z-50 p-4 border font-bold font-mono text-xs uppercase tracking-widest flex items-center gap-2 shadow-[4px_4px_0_rgba(0,0,0,0.2)]", feedback.type === 'success' ? "bg-green-500/15 border-green-700 text-green-600" : "bg-red-500/15 border-red-700 text-red-600")}>
+        <div className={cn(
+          "p-3.5 rounded-xl border font-bold font-mono text-xs uppercase tracking-wider shadow-sm",
+          feedback.type === 'success' ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-400" : "bg-red-500/15 border-red-500/30 text-red-600"
+        )}>
           {feedback.message}
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-        <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">02 // Gestión_Ubicaciones</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Estructura del almacén y zonas.</p>
+      {/* Action / Filter bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 opacity-40 text-[var(--ink)]" />
+          <input 
+            type="text"
+            placeholder="BUSCAR UBICACIÓN..." 
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl pl-10 pr-3.5 py-2.5 text-xs font-semibold text-[var(--ink)] placeholder-[var(--ink)]/40 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-mono uppercase shadow-xs"
+          />
         </div>
         
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          <div className="relative flex-1 w-full sm:w-64">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
-            <input 
-              type="text"
-              placeholder="BUSCAR UBICACION..." 
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] items-center px-9 py-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase"
-            />
-          </div>
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
           <select 
             value={filterType}
             onChange={e => setFilterType(e.target.value)}
-            className="w-full sm:w-auto bg-[var(--surface)] border border-[var(--border)] py-2 px-3 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase"
+            className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl py-2.5 px-3.5 text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all font-mono uppercase cursor-pointer shadow-xs"
           >
             <option value="ALL">TODOS LOS TIPOS</option>
             <option value="ZONE">ZONA PRINCIPAL</option>
             <option value="RACK">ESTANTE / RACK</option>
             <option value="BIN">GAVETA / BIN</option>
-            <option value="EXTERNAL">ALMACEN EXTERNO</option>
+            <option value="EXTERNAL">ALMACÉN EXTERNO</option>
             <option value="WAREHOUSE">BODEGA</option>
           </select>
           <button 
             onClick={requestOpenAddModal}
-            className="bg-[var(--ink)] hover:bg-[var(--bg-input)] w-full sm:w-auto justify-center text-[var(--ink-inv)] hover:text-[var(--ink)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-4 py-2 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest shrink-0"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs hover:shadow-md transition-all px-4 py-2.5 flex items-center justify-center gap-2 font-mono text-xs font-bold uppercase tracking-wider shrink-0 cursor-pointer active:scale-[0.98]"
           >
-            <Plus size={14} />
-            <span>NUEVA UBICACION</span>
+            <Plus size={15} />
+            <span>NUEVA UBICACIÓN</span>
           </button>
         </div>
       </div>
 
+      {/* Grid of Locations */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredLocations.map(loc => {
           const stats = getLocationStats(loc.id);
@@ -285,66 +279,82 @@ export const Locations: React.FC = () => {
           return (
             <div
               key={loc.id}
-              className={cn("bg-[var(--bg-card)] border border-[var(--border)] p-4 flex flex-col gap-4 shadow-[4px_4px_0_rgba(20,20,20,0.1)] hover:shadow-[4px_4px_0_var(--border)] transition-all relative group cursor-pointer", stats.totalItems === 0 && "opacity-80 bg-gray-100/40")}
+              className={cn(
+                "bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-5 flex flex-col gap-4 shadow-xs hover:shadow-md hover:border-blue-500/30 transition-all relative group cursor-pointer backdrop-blur-md",
+                stats.totalItems === 0 && "opacity-80"
+              )}
               onClick={(e) => stats.totalItems > 0 ? openDetail(loc, e) : toggleLocationExpand(loc.id, e)}
             >
               <div className="flex justify-between items-start">
-                <div className="flex gap-2 items-center">
-                  <div className={cn("bg-[var(--ink)] text-[var(--ink-inv)] p-1.5 shrink-0", stats.totalItems === 0 && "opacity-50")}><MapPin size={16}/></div>
-                  <div className="flex flex-col">
-                    <span className="font-mono text-sm font-black uppercase flex items-center gap-2">
+                <div className="flex gap-3 items-center">
+                  <div className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-xs",
+                    stats.totalItems === 0 ? "bg-[var(--ink)]/10 text-[var(--ink)] opacity-60" : "bg-blue-600 text-white"
+                  )}>
+                    <MapPin size={17}/>
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-mono text-sm font-black uppercase flex items-center gap-2 text-[var(--ink)] truncate">
                       {loc.name}
-                      {stats.totalItems === 0 && <span className="bg-orange-500/15 text-orange-600 text-[8px] px-1.5 py-0.5 border border-orange-500/30">VACÍA</span>}
+                      {stats.totalItems === 0 && (
+                        <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[8px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">
+                          VACÍA
+                        </span>
+                      )}
                     </span>
-                    <span className="font-mono text-[9px] opacity-70 tracking-widest font-bold">{loc.type}</span>
+                    <span className="font-mono text-[9px] opacity-60 tracking-wider font-bold">{loc.type}</span>
                   </div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={(e) => { e.stopPropagation(); setQrLocation(loc); }}
-                    className="p-1.5 border border-[var(--border)] text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center border border-[var(--border-soft)] text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors cursor-pointer"
                     title="VER QR"
                   >
-                    <QrCode size={12} />
+                    <QrCode size={13} />
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleEditClick(loc); }}
-                    className="p-1.5 border border-[var(--border)] text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center border border-[var(--border-soft)] text-[var(--ink)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors cursor-pointer"
+                    title="Editar"
                   >
-                    <Edit2 size={12} />
+                    <Edit2 size={13} />
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDeleteClick(loc.id, e); }}
-                    className="p-1.5 border border-red-700 text-red-700 hover:bg-red-700 hover:text-red-50 transition-colors"
+                    className="w-7 h-7 rounded-lg flex items-center justify-center border border-red-500/30 text-red-500 hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
+                    title="Eliminar"
                   >
-                    <Trash2 size={12} />
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 border-t border-[var(--border)]/10 pt-4">
-                <div className="flex flex-col">
-                  <span className="font-mono text-[9px] opacity-60 uppercase tracking-widest font-bold">TOTAL SKUs</span>
-                  <span className="font-mono text-lg font-black">{stats.uniqueSKUs}</span>
+
+              <div className="grid grid-cols-2 gap-3 border-t border-[var(--border-soft)] pt-3 mt-auto">
+                <div className="flex flex-col bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-soft)]/50">
+                  <span className="font-mono text-[9px] opacity-60 uppercase tracking-wider font-bold">TOTAL SKUs</span>
+                  <span className="font-mono text-lg font-black text-[var(--ink)]">{stats.uniqueSKUs}</span>
                 </div>
-                <div className="flex flex-col">
-                  <span className="font-mono text-[9px] opacity-60 uppercase tracking-widest font-bold">UNIDADES TOTALES</span>
-                  <span className="font-mono text-lg font-black">{stats.totalItems}</span>
+                <div className="flex flex-col bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-soft)]/50">
+                  <span className="font-mono text-[9px] opacity-60 uppercase tracking-wider font-bold">UNIDADES</span>
+                  <span className="font-mono text-lg font-black text-blue-600 dark:text-blue-400">{stats.totalItems}</span>
                 </div>
               </div>
+
               {isExpanded && stats.locationProducts.length > 0 && (
-                <div className="flex flex-col gap-2 border-t border-[var(--border)]/10 pt-4 max-h-48 overflow-y-auto pr-1">
+                <div className="flex flex-col gap-2 border-t border-[var(--border-soft)] pt-3 max-h-48 overflow-y-auto pr-1">
                   <span className="font-mono text-[9px] opacity-60 uppercase tracking-widest font-bold">PRODUCTOS ALMACENADOS</span>
                   {stats.locationProducts.map((lp, i) => (
-                    <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-[var(--border)]/5 pb-1 group/item">
+                    <div key={i} className="flex justify-between items-center text-[10px] font-mono border-b border-[var(--border-soft)]/40 pb-1.5 group/item">
                       <div className="flex flex-col truncate pr-2">
                         <span className="font-bold truncate">{lp.product?.name || 'PRODUCTO DESCONOCIDO'}</span>
-                        {(lp.product?.color || lp.product?.size) && <span className="text-[8px] opacity-70 truncate">{lp.product.color} {lp.product.size}</span>}
+                        {(lp.product?.color || lp.product?.size) && <span className="text-[8px] opacity-60 truncate">{lp.product.color} {lp.product.size}</span>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="bg-[var(--ink)] text-[var(--ink-inv)] px-1.5 py-0.5 shrink-0 transition-opacity">{lp.quantity}</span>
+                        <span className="bg-[var(--ink)]/5 text-[var(--ink)] px-2 py-0.5 rounded-md font-bold">{lp.quantity}</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); if(lp.product) setConfirmDeleteStock({ productId: lp.product.id, locationId: loc.id }); }}
-                          className="opacity-0 group-hover/item:opacity-100 text-red-600 hover:bg-red-500/15 p-1"
+                          className="opacity-0 group-hover/item:opacity-100 text-red-600 hover:bg-red-500/10 p-1 rounded-md"
                           title="ELIMINAR PRODUCTO DEL ESTANTE"
                         >
                           <Trash2 size={12} />
@@ -354,9 +364,9 @@ export const Locations: React.FC = () => {
                   ))}
                 </div>
               )}
-              {stats.locationProducts.length > 0 && (
-                <div className="text-[9px] text-[var(--ink)] font-mono opacity-50 uppercase text-center mt-2 group-hover:opacity-100 transition-opacity">
-                  VER PRODUCTOS ALMACENADOS ?
+              {stats.totalItems > 0 && (
+                <div className="text-[10px] text-blue-600 dark:text-blue-400 font-mono font-bold uppercase text-center mt-1 group-hover:underline">
+                  Ver detalle completo →
                 </div>
               )}
             </div>
@@ -365,45 +375,51 @@ export const Locations: React.FC = () => {
       </div>
 
       {filteredLocations.length === 0 && (
-         <div className="p-12 flex items-center justify-center text-[var(--ink)] opacity-50 font-mono text-sm uppercase border border-dashed border-[var(--border)]">NO HAY UBICACIONES REGISTRADAS</div>
+        <div className="p-12 flex flex-col items-center justify-center gap-2 text-[var(--ink)] opacity-60 font-mono text-sm uppercase rounded-2xl border border-dashed border-[var(--border-soft)] bg-[var(--surface)]">
+          <Boxes size={28} className="opacity-40" />
+          <span>NO HAY UBICACIONES REGISTRADAS</span>
+        </div>
       )}
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-sm shadow-[8px_8px_0_var(--border)] flex flex-col">
-            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">NUEVA UBICACION</h2>
-              <button onClick={() => setShowAddModal(false)} className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 transition-all"><X size={16}/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 transition-opacity">
+          <div className="bg-[var(--bg-modal)] border border-[var(--border-soft)] rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-[var(--border-soft)] bg-[var(--bg-sidebar)] flex justify-between items-center">
+              <h2 className="font-mono font-black text-xs uppercase tracking-wider">NUEVA UBICACIÓN</h2>
+              <button onClick={() => setShowAddModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-[var(--surface)] cursor-pointer"><X size={15}/></button>
             </div>
             <form onSubmit={handleAddSubmit} className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE UBICACION</label>
+                <label className="font-mono text-[9px] font-bold tracking-widest opacity-70 uppercase">NOMBRE UBICACIÓN</label>
                 <input 
                   required
                   value={newLocation.name}
                   onChange={e => setNewLocation({...newLocation, name: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] rounded-none"
+                  className="input-technical"
                   placeholder="EJ: PASILLO 2 - RACK A"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TIPO</label>
+                <label className="font-mono text-[9px] font-bold tracking-widest opacity-70 uppercase">TIPO</label>
                 <select 
                   value={newLocation.type}
                   onChange={e => setNewLocation({...newLocation, type: e.target.value as any})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] rounded-none"
+                  className="input-technical cursor-pointer"
                 >
                   <option value="ZONE">ZONA PRINCIPAL</option>
                   <option value="RACK">ESTANTE / RACK</option>
                   <option value="BIN">GAVETA / BIN</option>
-                  <option value="EXTERNAL">ALMACEN EXTERNO</option>
+                  <option value="EXTERNAL">ALMACÉN EXTERNO</option>
                   <option value="WAREHOUSE">BODEGA</option>
                 </select>
               </div>
-              <div className="mt-4 flex justify-end">
-                <button type="submit" className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-[0_0_0_var(--border)] active:translate-y-[4px] active:translate-x-[4px] transition-all">
-                  CREAR_REGISTRO
+              <div className="mt-2 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase opacity-60 hover:opacity-100">
+                  CANCELAR
+                </button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 py-2.5 text-xs font-mono tracking-wider font-bold shadow-xs cursor-pointer active:scale-[0.98]">
+                  GUARDAR
                 </button>
               </div>
             </form>
@@ -413,39 +429,42 @@ export const Locations: React.FC = () => {
 
       {/* Edit Modal */}
       {showEditModal && editingLocation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-sm shadow-[8px_8px_0_var(--border)] flex flex-col">
-            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">EDITAR UBICACION</h2>
-              <button onClick={requestCloseEditModal} className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 transition-all"><X size={16}/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 transition-opacity">
+          <div className="bg-[var(--bg-modal)] border border-[var(--border-soft)] rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-[var(--border-soft)] bg-[var(--bg-sidebar)] flex justify-between items-center">
+              <h2 className="font-mono font-black text-xs uppercase tracking-wider">EDITAR UBICACIÓN</h2>
+              <button onClick={requestCloseEditModal} className="w-7 h-7 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-[var(--surface)] cursor-pointer"><X size={15}/></button>
             </div>
             <form onSubmit={handleEditSubmit} className="p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE UBICACION</label>
+                <label className="font-mono text-[9px] font-bold tracking-widest opacity-70 uppercase">NOMBRE UBICACIÓN</label>
                 <input 
                   required
                   value={editingLocation.name}
                   onChange={e => setEditingLocation({...editingLocation, name: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] rounded-none"
+                  className="input-technical"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TIPO</label>
+                <label className="font-mono text-[9px] font-bold tracking-widest opacity-70 uppercase">TIPO</label>
                 <select 
                   value={editingLocation.type}
                   onChange={e => setEditingLocation({...editingLocation, type: e.target.value as any})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] rounded-none"
+                  className="input-technical cursor-pointer"
                 >
                   <option value="ZONE">ZONA PRINCIPAL</option>
                   <option value="RACK">ESTANTE / RACK</option>
                   <option value="BIN">GAVETA / BIN</option>
-                  <option value="EXTERNAL">ALMACEN EXTERNO</option>
+                  <option value="EXTERNAL">ALMACÉN EXTERNO</option>
                   <option value="WAREHOUSE">BODEGA</option>
                 </select>
               </div>
-              <div className="mt-4 flex justify-end">
-                <button type="submit" className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-[0_0_0_var(--border)] active:translate-y-[4px] active:translate-x-[4px] transition-all">
-                  GUARDAR_CAMBIOS
+              <div className="mt-2 flex justify-end gap-2">
+                <button type="button" onClick={requestCloseEditModal} className="px-4 py-2 rounded-xl text-xs font-mono font-bold uppercase opacity-60 hover:opacity-100">
+                  CANCELAR
+                </button>
+                <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-5 py-2.5 text-xs font-mono tracking-wider font-bold shadow-xs cursor-pointer active:scale-[0.98]">
+                  GUARDAR CAMBIOS
                 </button>
               </div>
             </form>
@@ -455,29 +474,29 @@ export const Locations: React.FC = () => {
 
       {/* Delete Confirmation Modal */}
       {deletingLocationId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[var(--bg)] border-4 border-red-700 w-full max-w-sm shadow-[8px_8px_0_#b91c1c] flex flex-col">
-            <div className="p-3 border-b border-red-700 bg-red-500/15 flex justify-between items-center text-red-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 transition-opacity">
+          <div className="bg-[var(--bg-modal)] border border-red-500/30 rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-red-500/20 bg-red-500/10 flex justify-between items-center text-red-600">
               <div className="flex items-center gap-2">
-                <AlertTriangle size={16} />
-                <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">ELIMINAR UBICACION</h2>
+                <AlertTriangle size={17} />
+                <h2 className="font-mono font-black text-xs uppercase tracking-wider">ELIMINAR UBICACIÓN</h2>
               </div>
-              <button onClick={() => setDeletingLocationId(null)} className="opacity-60 hover:opacity-100 hover:bg-red-700 hover:text-white p-1 transition-all"><X size={16}/></button>
+              <button onClick={() => setDeletingLocationId(null)} className="w-7 h-7 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 cursor-pointer"><X size={15}/></button>
             </div>
-            <div className="p-5 flex flex-col gap-6">
-              <p className="font-mono text-sm font-bold uppercase text-center leading-relaxed">
-                -Est-s seguro de que deseas eliminar esta ubicacion? Esta accion no se puede deshacer.
+            <div className="p-5 flex flex-col gap-5">
+              <p className="font-mono text-xs font-semibold uppercase text-center leading-relaxed opacity-80">
+                ¿Estás seguro de que deseas eliminar esta ubicación? Esta acción no se puede deshacer.
               </p>
-              <div className="flex justify-between gap-4 mt-2">
+              <div className="flex justify-between gap-3">
                 <button 
                   onClick={() => setDeletingLocationId(null)}
-                  className="flex-1 bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-white transition-all shadow-[2px_2px_0_var(--border)]"
+                  className="flex-1 border border-[var(--border-soft)] rounded-xl text-[var(--ink)] px-4 py-2.5 text-xs font-mono font-bold hover:bg-[var(--surface)] transition-all cursor-pointer"
                 >
                   CANCELAR
                 </button>
                 <button 
                   onClick={confirmDelete}
-                  className="flex-1 bg-red-700 border border-red-700 text-white px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-red-800 transition-all shadow-[2px_2px_0_#991b1b]"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl px-4 py-2.5 text-xs font-mono font-bold transition-all shadow-xs cursor-pointer"
                 >
                   CONFIRMAR
                 </button>
@@ -489,28 +508,28 @@ export const Locations: React.FC = () => {
 
       {/* Discard Confirmation Modal */}
       {showDiscardModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-sm shadow-[8px_8px_0_var(--border)] flex flex-col">
-            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">CAMBIOS SIN GUARDAR</h2>
-              <button onClick={() => setShowDiscardModal(false)} className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 transition-all"><X size={16}/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 transition-opacity">
+          <div className="bg-[var(--bg-modal)] border border-[var(--border-soft)] rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-[var(--border-soft)] bg-[var(--bg-sidebar)] flex justify-between items-center">
+              <h2 className="font-mono font-black text-xs uppercase tracking-wider">CAMBIOS SIN GUARDAR</h2>
+              <button onClick={() => setShowDiscardModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center opacity-60 hover:opacity-100 cursor-pointer"><X size={15}/></button>
             </div>
-            <div className="p-5 flex flex-col gap-6">
-              <p className="font-mono text-sm font-bold uppercase text-center leading-relaxed">
-                You have unsaved changes. Do you want to save them before leaving?
+            <div className="p-5 flex flex-col gap-5">
+              <p className="font-mono text-xs font-semibold uppercase text-center leading-relaxed opacity-80">
+                Tienes cambios sin guardar. ¿Deseas guardarlos antes de salir?
               </p>
-              <div className="flex justify-between gap-4 mt-2">
+              <div className="flex justify-between gap-3">
                 <button 
                   onClick={confirmDiscard}
-                  className="flex-1 bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-white transition-all shadow-[2px_2px_0_var(--border)]"
+                  className="flex-1 border border-[var(--border-soft)] rounded-xl text-[var(--ink)] px-4 py-2.5 text-xs font-mono font-bold hover:bg-[var(--surface)] transition-all cursor-pointer"
                 >
-                  Discard
+                  DESCARTAR
                 </button>
                 <button 
                   onClick={confirmSave}
-                  className="flex-1 bg-blue-700 border border-blue-700 text-white px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-blue-800 transition-all shadow-[2px_2px_0_#1d4ed8]"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-4 py-2.5 text-xs font-mono font-bold transition-all shadow-xs cursor-pointer"
                 >
-                  Save
+                  GUARDAR
                 </button>
               </div>
             </div>
@@ -519,26 +538,26 @@ export const Locations: React.FC = () => {
       )}
 
       {confirmDeleteStock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[var(--bg)] border-4 border-red-700 w-full max-w-sm shadow-[8px_8px_0_#b91c1c] flex flex-col">
-            <div className="p-3 border-b border-red-700 bg-red-500/15 flex items-center gap-2 text-red-600">
-              <AlertTriangle size={16} />
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">ELIMINAR STOCK</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-[var(--bg-modal)] border border-red-500/30 rounded-2xl w-full max-w-sm shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-red-500/20 bg-red-500/10 flex items-center gap-2 text-red-600">
+              <AlertTriangle size={17} />
+              <h2 className="font-mono font-black text-xs uppercase tracking-wider">ELIMINAR STOCK</h2>
             </div>
-            <div className="p-5 flex flex-col gap-6">
-              <p className="font-mono text-sm font-bold uppercase text-center leading-relaxed">
-                -Est-s seguro de que deseas eliminar este producto del estante? Esta accion no se puede deshacer.
+            <div className="p-5 flex flex-col gap-5">
+              <p className="font-mono text-xs font-semibold uppercase text-center leading-relaxed opacity-80">
+                ¿Estás seguro de que deseas eliminar este producto del estante? Esta acción no se puede deshacer.
               </p>
-              <div className="flex justify-between gap-4 mt-2">
+              <div className="flex justify-between gap-3">
                 <button
                   onClick={() => setConfirmDeleteStock(null)}
-                  className="flex-1 bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-white transition-all shadow-[2px_2px_0_var(--border)]"
+                  className="flex-1 border border-[var(--border-soft)] rounded-xl text-[var(--ink)] px-4 py-2.5 text-xs font-mono font-bold hover:bg-[var(--surface)] transition-all cursor-pointer"
                 >
                   CANCELAR
                 </button>
                 <button
                   onClick={() => { deleteStockLevel(confirmDeleteStock.productId, confirmDeleteStock.locationId); setConfirmDeleteStock(null); }}
-                  className="flex-1 bg-red-700 border border-red-700 text-white px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-red-800 transition-all shadow-[2px_2px_0_#991b1b]"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl px-4 py-2.5 text-xs font-mono font-bold transition-all shadow-xs cursor-pointer"
                 >
                   CONFIRMAR
                 </button>
@@ -550,38 +569,44 @@ export const Locations: React.FC = () => {
 
       {/* Location detail modal */}
       {detailLocation && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[6px_6px_0_var(--border)] w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-modal)] border border-[var(--border-soft)] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
             {/* Header */}
-            <div className="border-b border-[var(--border)] px-5 py-3 flex justify-between items-center shrink-0">
+            <div className="border-b border-[var(--border-soft)] px-5 py-3.5 flex justify-between items-center shrink-0 bg-[var(--surface)]">
               <div className="flex items-center gap-3">
-                <button onClick={() => setDetailLocation(null)} className="flex items-center gap-1 font-mono text-[10px] opacity-60 hover:opacity-100 transition-opacity">
-                  <ChevronLeft size={13} /> VOLVER
+                <button onClick={() => setDetailLocation(null)} className="flex items-center gap-1 font-mono text-[10px] font-bold opacity-60 hover:opacity-100 transition-opacity cursor-pointer">
+                  <ChevronLeft size={14} /> VOLVER
                 </button>
                 <span className="font-mono text-[10px] opacity-30">|</span>
-                <MapPin size={13} className="opacity-50" />
-                <span className="font-mono font-bold text-xs uppercase tracking-widest">{detailLocation.name}</span>
-                <span className="font-mono text-[9px] opacity-50 border border-[var(--border)]/30 px-1.5 py-0.5">{detailLocation.type}</span>
+                <MapPin size={15} className="text-blue-600 dark:text-blue-400" />
+                <span className="font-mono font-bold text-sm uppercase tracking-wide">{detailLocation.name}</span>
+                <span className="font-mono text-[9px] font-bold opacity-60 border border-[var(--border-soft)] rounded-full px-2 py-0.5">{detailLocation.type}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="font-mono text-[10px] opacity-50">{detailItems.length} SKUs · {detailItems.reduce((s, i) => s + i.quantity, 0)} uds.</span>
-                <button onClick={() => setDetailLocation(null)} className="font-mono text-xs opacity-60 hover:opacity-100">?</button>
+                <span className="font-mono text-[10px] opacity-60 font-bold">{detailItems.length} SKUs · {detailItems.reduce((s, i) => s + i.quantity, 0)} uds.</span>
+                <button onClick={() => setDetailLocation(null)} className="w-7 h-7 rounded-lg flex items-center justify-center font-mono text-sm opacity-60 hover:opacity-100 cursor-pointer">✕</button>
               </div>
             </div>
 
             {/* Filters */}
-            <div className="border-b border-[var(--border)]/20 px-5 py-3 flex flex-wrap gap-2 shrink-0 bg-[var(--surface-alt)]">
+            <div className="border-b border-[var(--border-soft)] px-5 py-3 flex flex-wrap gap-3 shrink-0 bg-[var(--surface-alt)]">
               {/* Producto */}
               <div className="flex flex-col gap-1 min-w-0">
-                <span className="font-mono text-[8px] uppercase tracking-widest opacity-50 font-bold">Producto</span>
+                <span className="font-mono text-[9px] uppercase tracking-wider opacity-60 font-bold">Producto</span>
                 <div className="flex flex-wrap gap-1">
                   <button onClick={() => { setDetailFilterName(''); setDetailFilterColor(''); setDetailFilterSize(''); }}
-                    className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${!detailFilterName ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                    className={cn(
+                      'px-3 py-1 text-[9px] font-mono font-bold rounded-lg border transition-all cursor-pointer',
+                      !detailFilterName ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                    )}>
                     TODOS
                   </button>
                   {detailNames.map(n => (
                     <button key={n} onClick={() => { setDetailFilterName(detailFilterName === n ? '' : n); setDetailFilterColor(''); setDetailFilterSize(''); }}
-                      className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${detailFilterName === n ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                      className={cn(
+                        'px-3 py-1 text-[9px] font-mono font-bold rounded-lg border transition-all cursor-pointer',
+                        detailFilterName === n ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                      )}>
                       {n}
                     </button>
                   ))}
@@ -590,15 +615,21 @@ export const Locations: React.FC = () => {
 
               {detailColors.length > 0 && (
                 <div className="flex flex-col gap-1 min-w-0">
-                  <span className="font-mono text-[8px] uppercase tracking-widest opacity-50 font-bold">Color</span>
+                  <span className="font-mono text-[9px] uppercase tracking-wider opacity-60 font-bold">Color</span>
                   <div className="flex flex-wrap gap-1">
                     <button onClick={() => { setDetailFilterColor(''); setDetailFilterSize(''); }}
-                      className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${!detailFilterColor ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                      className={cn(
+                        'px-3 py-1 text-[9px] font-mono font-bold rounded-lg border transition-all cursor-pointer',
+                        !detailFilterColor ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                      )}>
                       TODOS
                     </button>
                     {detailColors.map(c => (
                       <button key={c} onClick={() => { setDetailFilterColor(detailFilterColor === c ? '' : c); setDetailFilterSize(''); }}
-                        className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${detailFilterColor === c ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                        className={cn(
+                          'px-3 py-1 text-[9px] font-mono font-bold rounded-lg border transition-all cursor-pointer',
+                          detailFilterColor === c ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                        )}>
                         {c}
                       </button>
                     ))}
@@ -608,15 +639,21 @@ export const Locations: React.FC = () => {
 
               {detailSizes.length > 0 && (
                 <div className="flex flex-col gap-1 min-w-0">
-                  <span className="font-mono text-[8px] uppercase tracking-widest opacity-50 font-bold">Talla</span>
+                  <span className="font-mono text-[9px] uppercase tracking-wider opacity-60 font-bold">Talla</span>
                   <div className="flex flex-wrap gap-1">
                     <button onClick={() => setDetailFilterSize('')}
-                      className={`px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${!detailFilterSize ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                      className={cn(
+                        'px-3 py-1 text-[9px] font-mono font-bold rounded-lg border transition-all cursor-pointer',
+                        !detailFilterSize ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                      )}>
                       TODAS
                     </button>
                     {detailSizes.map(s => (
                       <button key={s} onClick={() => setDetailFilterSize(detailFilterSize === s ? '' : s)}
-                        className={`min-w-[36px] px-2.5 py-1 text-[9px] font-mono font-bold border transition-all ${detailFilterSize === s ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
+                        className={cn(
+                          'min-w-[36px] px-3 py-1 text-[9px] font-mono font-bold rounded-lg border transition-all cursor-pointer',
+                          detailFilterSize === s ? 'bg-blue-600 text-white border-blue-600' : 'border-[var(--border-soft)] bg-[var(--surface)] hover:bg-[var(--bg-input)]'
+                        )}>
                         {s}
                       </button>
                     ))}
@@ -633,30 +670,30 @@ export const Locations: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {detailFiltered.map(item => (
                     <div key={`${item.productId}-${item.locationId}`}
-                      className="border border-[var(--border)] bg-[var(--surface)] flex flex-col p-3 gap-2 hover:bg-[var(--bg-input)] transition-colors">
-                      <div className="font-mono text-[8px] opacity-50 font-bold uppercase tracking-wide truncate">
+                      className="border border-[var(--border-soft)] bg-[var(--surface)] rounded-xl flex flex-col p-3.5 gap-2 hover:bg-[var(--bg-card)] hover:border-blue-500/30 transition-all shadow-xs">
+                      <div className="font-mono text-[9px] opacity-60 font-bold uppercase tracking-wider truncate">
                         {item.product!.code}
                       </div>
-                      <div className="font-mono font-black text-xs uppercase leading-tight">
+                      <div className="font-mono font-black text-xs uppercase leading-tight text-[var(--ink)]">
                         {item.product!.name}
                       </div>
                       {(item.product!.color || item.product!.size) && (
                         <div className="flex flex-wrap gap-1">
                           {item.product!.color && (
-                            <span className="font-mono text-[8px] border border-[var(--border)]/30 px-1.5 py-0.5 uppercase bg-[var(--surface)]">
+                            <span className="font-mono text-[8px] font-bold border border-[var(--border-soft)] rounded-md px-1.5 py-0.5 uppercase bg-[var(--bg-card)]">
                               {item.product!.color}
                             </span>
                           )}
                           {item.product!.size && (
-                            <span className="font-mono text-[8px] border border-[var(--border)]/30 px-1.5 py-0.5 uppercase bg-[var(--surface)]">
+                            <span className="font-mono text-[8px] font-bold border border-[var(--border-soft)] rounded-md px-1.5 py-0.5 uppercase bg-[var(--bg-card)]">
                               {item.product!.size}
                             </span>
                           )}
                         </div>
                       )}
-                      <div className="mt-auto pt-2 border-t border-[var(--border)]/10 flex items-end justify-between">
-                        <span className="font-mono text-[8px] opacity-40 uppercase">uds.</span>
-                        <span className="font-mono font-black text-2xl leading-none">{item.quantity}</span>
+                      <div className="mt-auto pt-2 border-t border-[var(--border-soft)] flex items-end justify-between">
+                        <span className="font-mono text-[8px] opacity-50 uppercase font-bold">uds.</span>
+                        <span className="font-mono font-black text-xl text-blue-600 dark:text-blue-400 leading-none">{item.quantity}</span>
                       </div>
                     </div>
                   ))}
@@ -665,8 +702,8 @@ export const Locations: React.FC = () => {
             </div>
 
             {/* Footer count */}
-            <div className="border-t border-[var(--border)]/20 px-5 py-2 shrink-0 flex justify-between items-center bg-[var(--surface-alt)]">
-              <span className="font-mono text-[9px] opacity-40 uppercase tracking-widest">
+            <div className="border-t border-[var(--border-soft)] px-5 py-2.5 shrink-0 flex justify-between items-center bg-[var(--surface-alt)]">
+              <span className="font-mono text-[10px] opacity-60 uppercase tracking-wider font-bold">
                 {detailFiltered.length} SKUs mostrados · {detailFiltered.reduce((s, i) => s + i.quantity, 0)} unidades
               </span>
             </div>

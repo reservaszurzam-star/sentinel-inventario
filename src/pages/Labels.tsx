@@ -2,8 +2,9 @@ import React, { useState, useRef } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { QRCodeSVG } from 'qrcode.react';
-import { Printer, Search, Tag, MapPin } from 'lucide-react';
+import { Printer, Search, Tag, MapPin, Check, SlidersHorizontal, CheckSquare, Square } from 'lucide-react';
 import { TutorialModal, LABELS_TUTORIAL_STEPS } from '../components/TutorialModal';
+import { cn } from '../lib/utils';
 
 type LabelMode = 'products' | 'locations';
 type LabelStyle = 'qr' | 'barcode' | 'both';
@@ -98,35 +99,40 @@ export const Labels: React.FC = () => {
   const printRef = useRef<HTMLDivElement>(null);
 
   const QR_SIZE = { sm: 50, md: 70, lg: 100 };
-  const BAR_H = { sm: 28, md: 36, lg: 52 };
-  const LABEL_W = { sm: 130, md: 160, lg: 220 };
+  const BAR_H = { sm: 25, md: 35, lg: 50 };
+  const LABEL_W = { sm: '140px', md: '180px', lg: '230px' };
 
   const filteredProducts = products.filter(p =>
-    `${p.code} ${p.name} ${p.color || ''} ${p.size || ''}`.toLowerCase().includes(search.toLowerCase())
+    p.code.toLowerCase().includes(search.toLowerCase()) ||
+    p.name.toLowerCase().includes(search.toLowerCase()) ||
+    (p.category && p.category.toLowerCase().includes(search.toLowerCase()))
   );
+
   const filteredLocations = locations.filter(l =>
-    l.name.toLowerCase().includes(search.toLowerCase())
+    l.name.toLowerCase().includes(search.toLowerCase()) ||
+    l.type.toLowerCase().includes(search.toLowerCase())
   );
 
   const toggleSelect = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
   const selectAll = () => {
-    const items = mode === 'products' ? filteredProducts : filteredLocations;
-    setSelected(new Set(items.map(i => i.id)));
+    const ids = (mode === 'products' ? filteredProducts : filteredLocations).map(x => x.id);
+    setSelected(new Set(ids));
   };
 
   const clearSelection = () => setSelected(new Set());
 
-  const stockForProduct = (productId: string) =>
-    stockLevels.filter(s => s.productId === productId).reduce((s, l) => s + l.quantity, 0);
+  const stockForProduct = (id: string) =>
+    stockLevels.filter(s => s.productId === id).reduce((sum, s) => sum + s.quantity, 0);
 
-  const getQRValue = (item: { id: string; [key: string]: unknown }) => {
+  const getQRValue = (item: { id: string }) => {
     if (mode === 'products') {
       const p = products.find(x => x.id === item.id);
       if (!p) return item.id;
@@ -152,8 +158,6 @@ export const Labels: React.FC = () => {
         @media print { 
           body { padding: 0; } 
           .grid { gap: 8px; padding: 0; justify-content: flex-start; }
-          /* Optional: For continuous thermal rolls, you can uncomment page-break-inside */
-          /* .label-wrapper { page-break-inside: avoid; margin-bottom: 2mm; } */
         }
       </style></head><body>
       <div class="grid">${content.innerHTML}</div>
@@ -168,29 +172,28 @@ export const Labels: React.FC = () => {
     if (mode === 'products') {
       const p = products.find(x => x.id === id);
       if (!p) return null;
-      const stock = stockForProduct(p.id);
       const qrValue = getQRValue({ id });
       const barcodeValue = p.code;
       return (
         <div key={id} className="label-wrapper" style={{ 
           width: LABEL_W[labelSize],
           border: '2px solid #000',
-          borderRadius: '8px',
-          padding: '12px 8px',
+          borderRadius: '12px',
+          padding: '14px 10px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           backgroundColor: '#fff',
           fontFamily: 'system-ui, -apple-system, sans-serif',
           color: '#000',
-          boxShadow: '2px 2px 0px rgba(0,0,0,0.1)' /* Only visible on screen, print ignores usually */
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}>
           <div style={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
             {activeBrand.replace('_', ' ')}
           </div>
           
           {(labelStyle === 'qr' || labelStyle === 'both') && (
-            <div style={{ padding: '4px', border: '1px solid #eee', borderRadius: '4px', marginBottom: '8px' }}>
+            <div style={{ padding: '6px', border: '1px solid #eee', borderRadius: '8px', marginBottom: '8px' }}>
               <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} level="Q" />
             </div>
           )}
@@ -230,21 +233,22 @@ export const Labels: React.FC = () => {
         <div key={id} className="label-wrapper" style={{ 
           width: LABEL_W[labelSize],
           border: '2px solid #000',
-          borderRadius: '8px',
-          padding: '12px 8px',
+          borderRadius: '12px',
+          padding: '14px 10px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           backgroundColor: '#fff',
           fontFamily: 'system-ui, -apple-system, sans-serif',
-          color: '#000'
+          color: '#000',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}>
           <div style={{ fontSize: '9px', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
             {activeBrand.replace('_', ' ')}
           </div>
           
           {(labelStyle === 'qr' || labelStyle === 'both') && (
-            <div style={{ padding: '4px', border: '1px solid #eee', borderRadius: '4px', marginBottom: '8px' }}>
+            <div style={{ padding: '6px', border: '1px solid #eee', borderRadius: '8px', marginBottom: '8px' }}>
               <QRCodeSVG value={qrValue} size={QR_SIZE[labelSize]} level="Q" />
             </div>
           )}
@@ -266,129 +270,226 @@ export const Labels: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full">
+    <div className="w-full max-w-7xl mx-auto space-y-6 pb-12 animate-fade-in">
       <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={LABELS_TUTORIAL_STEPS} title="Etiquetas" />
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo number="11" title="Etiquetas QR" description="Generación e impresión de etiquetas con código QR y/o código de barras para identificar productos físicamente en el almacén y agilizar las operaciones de picking." />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-        <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">12 // ETIQUETAS_QR</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Generación e impresión de etiquetas con código QR y de barras.</p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <select value={labelSize} onChange={e => setLabelSize(e.target.value as 'sm' | 'md' | 'lg')}
-            className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-            <option value="sm">PEQUEÑA</option>
-            <option value="md">MEDIANA</option>
-            <option value="lg">GRANDE</option>
-          </select>
-          <button onClick={handlePrint} disabled={selected.size === 0}
-            className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 text-xs font-bold font-mono uppercase hover:shadow-[3px_3px_0_var(--border)] transition-all border border-[var(--border)] disabled:opacity-30 disabled:cursor-not-allowed">
-            <Printer size={14} /> IMPRIMIR ({selected.size})
-          </button>
-        </div>
-      </div>
 
-      {/* Mode toggle */}
-      <div className="flex border border-[var(--border)]">
-        <button onClick={() => { setMode('products'); clearSelection(); }}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold font-mono uppercase transition-all ${mode === 'products' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}>
-          <Tag size={13} /> Productos
-        </button>
-        <button onClick={() => { setMode('locations'); clearSelection(); }}
-          className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-[10px] font-bold font-mono uppercase transition-all border-l border-[var(--border)] ${mode === 'locations' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--surface-alt)] hover:bg-[var(--surface)]'}`}>
-          <MapPin size={13} /> Ubicaciones
-        </button>
-      </div>
+      {/* Module Header */}
+      <ModuleInfo
+        number="19"
+        title="Generador de Etiquetas Físicas"
+        description="Emisión de etiquetas con códigos QR y de barras para identificación física de prendas y gavetas de almacén."
+        onTutorial={() => setShowTutorial(true)}
+      />
 
-      {/* Label style + extra fields */}
-      <div className="flex flex-wrap items-center gap-4 border border-[var(--border)]/30 bg-[var(--surface-alt)] p-3">
-        <div className="flex flex-col gap-1">
-          <span className="font-mono text-[8px] uppercase tracking-widest opacity-50">CÓDIGO</span>
-          <div className="flex border border-[var(--border)]">
-            {(['qr', 'barcode', 'both'] as LabelStyle[]).map(s => (
-              <button key={s} onClick={() => setLabelStyle(s)}
-                className={`px-3 py-1.5 text-[9px] font-bold font-mono uppercase border-r last:border-r-0 border-[var(--border)] transition-colors ${labelStyle === s ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-[var(--surface)]'}`}>
-                {s === 'qr' ? 'QR' : s === 'barcode' ? 'BARRAS' : 'AMBOS'}
-              </button>
-            ))}
+      {/* Main Controls Card */}
+      <div className="modern-card p-6 rounded-3xl space-y-5">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-[var(--border-soft)]">
+          {/* Mode Switcher */}
+          <div className="flex p-1 bg-[var(--surface-alt)]/60 border border-[var(--border-soft)] rounded-2xl gap-1">
+            <button
+              onClick={() => { setMode('products'); clearSelection(); }}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all",
+                mode === 'products'
+                  ? "bg-[var(--ink)] text-[var(--ink-inv)] shadow-sm"
+                  : "text-[var(--ink)]/60 hover:text-[var(--ink)]"
+              )}
+            >
+              <Tag size={14} />
+              <span>Etiquetas de Productos</span>
+            </button>
+            <button
+              onClick={() => { setMode('locations'); clearSelection(); }}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-mono text-xs font-bold transition-all",
+                mode === 'locations'
+                  ? "bg-[var(--ink)] text-[var(--ink-inv)] shadow-sm"
+                  : "text-[var(--ink)]/60 hover:text-[var(--ink)]"
+              )}
+            >
+              <MapPin size={14} />
+              <span>Etiquetas de Ubicaciones</span>
+            </button>
+          </div>
+
+          {/* Size & Print Actions */}
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <div className="flex items-center gap-1.5 p-1 bg-[var(--surface-alt)]/60 border border-[var(--border-soft)] rounded-xl">
+              <span className="font-mono text-[10px] text-[var(--ink)]/50 px-2 uppercase font-bold">Tamaño:</span>
+              {(['sm', 'md', 'lg'] as const).map(sz => (
+                <button
+                  key={sz}
+                  onClick={() => setLabelSize(sz)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg font-mono text-[10px] font-bold uppercase transition-all",
+                    labelSize === sz
+                      ? "bg-[var(--ink)] text-[var(--ink-inv)] shadow-xs"
+                      : "text-[var(--ink)]/60 hover:text-[var(--ink)]"
+                  )}
+                >
+                  {sz === 'sm' ? 'Chica' : sz === 'md' ? 'Mediana' : 'Grande'}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={handlePrint}
+              disabled={selected.size === 0}
+              className="modern-btn-primary flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs shadow-xs disabled:opacity-50"
+            >
+              <Printer size={15} />
+              <span>Imprimir ({selected.size})</span>
+            </button>
           </div>
         </div>
-        {mode === 'products' && (
-          <div className="flex flex-col gap-1">
-            <span className="font-mono text-[8px] uppercase tracking-widest opacity-50">MOSTRAR EN ETIQUETA</span>
-            <div className="flex gap-2">
-              {[
-                { key: 'price', label: 'PRECIO', value: showPrice, set: setShowPrice },
-                { key: 'stock', label: 'STOCK', value: showStock, set: setShowStock },
-                { key: 'cat', label: 'CATEGORÍA', value: showCategory, set: setShowCategory },
-              ].map(opt => (
-                <button key={opt.key} onClick={() => opt.set(!opt.value)}
-                  className={`px-2 py-1.5 text-[9px] font-bold font-mono uppercase border transition-colors ${opt.value ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)]/40 hover:border-[var(--border)]'}`}>
-                  {opt.label}
+
+        {/* Format Options & Toggles */}
+        <div className="flex flex-wrap items-center gap-6 pt-1">
+          <div className="space-y-1.5">
+            <span className="font-mono text-[10px] uppercase font-bold text-[var(--ink)]/50 tracking-wider block">
+              Formato de Código
+            </span>
+            <div className="flex p-1 bg-[var(--surface-alt)]/60 border border-[var(--border-soft)] rounded-xl gap-1">
+              {(['qr', 'barcode', 'both'] as LabelStyle[]).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setLabelStyle(s)}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-lg font-mono text-[10px] font-bold uppercase transition-all",
+                    labelStyle === s
+                      ? "bg-[var(--ink)] text-[var(--ink-inv)] shadow-xs"
+                      : "text-[var(--ink)]/60 hover:text-[var(--ink)]"
+                  )}
+                >
+                  {s === 'qr' ? 'Código QR' : s === 'barcode' ? 'Barras 128' : 'Ambos'}
                 </button>
               ))}
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Search + controls */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--surface)] px-3 py-2 flex-1 min-w-48">
-          <Search size={13} className="opacity-40 shrink-0" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..."
-            className="bg-transparent flex-1 text-xs font-mono focus:outline-none placeholder:opacity-40" />
+          {mode === 'products' && (
+            <div className="space-y-1.5">
+              <span className="font-mono text-[10px] uppercase font-bold text-[var(--ink)]/50 tracking-wider block">
+                Campos Visibles
+              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { key: 'price', label: 'Precio S/', value: showPrice, set: setShowPrice },
+                  { key: 'stock', label: 'Stock Actual', value: showStock, set: setShowStock },
+                  { key: 'cat', label: 'Categoría', value: showCategory, set: setShowCategory },
+                ].map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => opt.set(!opt.value)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-xl font-mono text-xs font-semibold border flex items-center gap-1.5 transition-all",
+                      opt.value
+                        ? "bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-500/30 font-bold"
+                        : "bg-[var(--surface-alt)]/40 border-[var(--border-soft)] text-[var(--ink)]/50"
+                    )}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${opt.value ? 'bg-blue-500' : 'bg-transparent border border-slate-400'}`} />
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <button onClick={selectAll} className="font-mono text-[10px] font-bold uppercase hover:underline opacity-60 hover:opacity-100">SELEC. TODOS</button>
-        <button onClick={clearSelection} className="font-mono text-[10px] font-bold uppercase hover:underline opacity-60 hover:opacity-100">LIMPIAR</button>
-        <span className="font-mono text-[10px] opacity-50">{selected.size} seleccionados</span>
-      </div>
 
-      {/* Item list */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
-        {(mode === 'products' ? filteredProducts : filteredLocations).map(item => {
-          const isSelected = selected.has(item.id);
-          const label = mode === 'products'
-            ? (() => { const p = item as typeof products[0]; return `${p.code} ${p.name} ${p.color || ''} ${p.size || ''}`.trim(); })()
-            : item.name;
-          return (
-            <button key={item.id} onClick={() => toggleSelect(item.id)}
-              className={`text-left px-3 py-2 border text-[10px] font-mono transition-all ${isSelected ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]' : 'border-[var(--border)]/40 bg-[var(--surface-alt)] hover:border-[var(--border)] hover:bg-[var(--surface)]'}`}>
-              <div className="font-bold truncate">{label}</div>
-              {mode === 'products' && <div className="opacity-50 text-[8px] mt-0.5">{(item as typeof products[0]).category}</div>}
-              {mode === 'locations' && <div className="opacity-50 text-[8px] mt-0.5">{(item as typeof locations[0]).type}</div>}
+        {/* Search Bar + Batch Selectors */}
+        <div className="flex items-center justify-between gap-3 pt-3 border-t border-[var(--border-soft)] flex-wrap">
+          <div className="relative flex-1 min-w-[240px]">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink)]/40" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por código, nombre o tipo..."
+              className="input-technical rounded-xl text-xs py-2 pl-10 pr-4 w-full"
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={selectAll}
+              className="px-3 py-2 rounded-xl border border-[var(--border-soft)] hover:bg-[var(--surface-alt)] font-mono text-xs font-bold text-[var(--ink)]/70 transition-colors"
+            >
+              Seleccionar Todos
             </button>
-          );
-        })}
+            <button
+              onClick={clearSelection}
+              className="px-3 py-2 rounded-xl border border-[var(--border-soft)] hover:bg-[var(--surface-alt)] font-mono text-xs font-bold text-[var(--ink)]/70 transition-colors"
+            >
+              Limpiar
+            </button>
+            <span className="font-mono text-xs text-[var(--ink)]/50 ml-1">
+              <strong>{selected.size}</strong> seleccionados
+            </span>
+          </div>
+        </div>
+
+        {/* Selection Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 max-h-72 overflow-y-auto pr-1">
+          {(mode === 'products' ? filteredProducts : filteredLocations).map(item => {
+            const isSelected = selected.has(item.id);
+            const label = mode === 'products'
+              ? (() => { const p = item as typeof products[0]; return `${p.code} ${p.name} ${p.color || ''} ${p.size || ''}`.trim(); })()
+              : item.name;
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => toggleSelect(item.id)}
+                className={cn(
+                  "text-left p-3 rounded-2xl border text-xs font-mono transition-all duration-150 flex flex-col justify-between",
+                  isSelected
+                    ? "bg-[var(--ink)] text-[var(--ink-inv)] border-transparent shadow-xs scale-[1.01]"
+                    : "bg-[var(--surface-alt)]/30 border-[var(--border-soft)] text-[var(--ink)]/70 hover:border-[var(--ink)]/30 hover:bg-[var(--surface)]"
+                )}
+              >
+                <div className="flex items-start justify-between gap-1 mb-1">
+                  <span className="font-bold truncate text-[11px] block">{label}</span>
+                  {isSelected ? (
+                    <CheckSquare size={13} className="shrink-0 text-emerald-400 mt-0.5" />
+                  ) : (
+                    <Square size={13} className="shrink-0 opacity-30 mt-0.5" />
+                  )}
+                </div>
+                {mode === 'products' && (
+                  <span className="text-[9px] opacity-60 uppercase truncate">
+                    {(item as typeof products[0]).category || 'Sin categoría'}
+                  </span>
+                )}
+                {mode === 'locations' && (
+                  <span className="text-[9px] opacity-60 uppercase truncate">
+                    {(item as typeof locations[0]).type}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Preview */}
-      {selected.size > 0 && (
-        <div className="border-t border-[var(--border)] pt-4">
-          <div className="font-mono text-[9px] font-bold uppercase tracking-widest opacity-60 mb-3">PREVISUALIZACIÓN</div>
-          <div ref={printRef} className="flex flex-wrap gap-3">
+      {/* Preview Section */}
+      {selected.size > 0 ? (
+        <div className="modern-card p-6 rounded-3xl space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-[var(--border-soft)]">
+            <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-[var(--ink)]">
+              Previsualización de Impresión ({selected.size} etiquetas)
+            </h3>
+            <span className="font-mono text-[10px] text-[var(--ink)]/40">
+              Formato optimizado para rollos térmicos o planchas A4
+            </span>
+          </div>
+          <div ref={printRef} className="flex flex-wrap gap-4 justify-start">
             {[...selected].map(id => renderLabel(id))}
           </div>
         </div>
-      )}
-
-      {selected.size === 0 && (
-        <div className="text-center font-mono text-xs opacity-40 py-8 uppercase tracking-widest border border-dashed border-[var(--border)]/30">
-          Selecciona ítems arriba para previsualizar las etiquetas
+      ) : (
+        <div className="modern-card p-12 rounded-3xl text-center space-y-2 font-mono text-xs uppercase tracking-wider text-[var(--ink)]/40">
+          <Tag size={28} className="mx-auto mb-2 opacity-30" />
+          <p>Selecciona productos o ubicaciones arriba para ver la hoja de etiquetas</p>
         </div>
       )}
     </div>

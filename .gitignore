@@ -8,3 +8,4 @@ coverage/
 !.env.example
 .claude/
 fix_*.js
+src/store/domains/

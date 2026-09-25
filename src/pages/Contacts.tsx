@@ -1,7 +1,7 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, Trash2, Edit2, History, X, AlertTriangle } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, History, X, AlertTriangle, Users, Building, Phone, Mail, FileText } from 'lucide-react';
 import { Contact } from '../types';
 import { format } from 'date-fns';
 import { TutorialModal, CONTACTS_TUTORIAL_STEPS } from '../components/TutorialModal';
@@ -55,115 +55,137 @@ export const Contacts: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full relative">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 pb-12">
       <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={CONTACTS_TUTORIAL_STEPS} title="Contactos" />
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo number="11" title="Contactos" description="Directorio de proveedores y clientes vinculados a las operaciones del almacén: datos de contacto, RUC y tipo de relación comercial." />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-        <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">04 // DATOS_CONTACTOS</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">Gestión de Proveedores y Clientes.</p>
-        </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap">
-          <div className="flex flex-col gap-1 items-start w-1/2 sm:w-32 lg:w-40">
-            <select 
-              value={filterType} 
-              onChange={(e) => setFilterType(e.target.value)}
-              className="w-full bg-[var(--surface)] border border-[var(--border)] py-2 px-2 text-[10px] font-bold text-[var(--ink)] focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase cursor-pointer h-[38px]"
-            >
-              <option value="ALL">TIPO (TODOS)</option>
-              <option value="SUPPLIER">PROVEEDOR</option>
-              <option value="CLIENT">CLIENTE</option>
-            </select>
-          </div>
-          <div className="relative flex-1 min-w-[150px] sm:w-48 lg:w-56">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+      
+      {/* Modern Hero Module Header */}
+      <ModuleInfo 
+        number="11" 
+        title="Directorio de Contactos" 
+        description="Gestión integral de proveedores y clientes vinculados a las operaciones del almacén: datos de contacto, RUC/DNI y trazabilidad histórica de compras y despachos." 
+        onTutorial={() => setShowTutorial(true)} 
+      />
+
+      {/* Modern Action Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-3.5 shadow-sm">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap">
+          <select 
+            value={filterType} 
+            onChange={(e) => setFilterType(e.target.value)}
+            className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-bold text-[var(--ink)] rounded-xl focus:outline-none focus:border-blue-500 uppercase cursor-pointer"
+          >
+            <option value="ALL">TODOS LOS TIPOS</option>
+            <option value="SUPPLIER">PROVEEDORES</option>
+            <option value="CLIENT">CLIENTES</option>
+          </select>
+
+          <div className="relative flex-1 sm:w-64">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/40 pointer-events-none" />
             <input 
               type="text" 
-              placeholder="BUSCAR CONTACTO..."
+              placeholder="BUSCAR NOMBRE O RUC..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent border border-[var(--border)] py-2 pl-9 pr-4 text-[10px] font-bold focus:outline-none focus:bg-[var(--bg-input)] focus:shadow-[2px_2px_0_var(--border)] transition-all font-mono uppercase h-[38px]"
+              className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] pl-8 pr-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 uppercase placeholder:normal-case"
             />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--ink)]/40 hover:text-[var(--ink)]">
+                <X size={13} />
+              </button>
+            )}
           </div>
-          <button 
-            onClick={() => {
-              setEditingContact(null);
-              setFormData({ type: 'SUPPLIER', name: '', document: '', phone: '', email: '' });
-              setShowModal(true);
-            }}
-            className="bg-[var(--ink)] hover:bg-[var(--bg-input)] text-[var(--ink-inv)] hover:text-[var(--ink)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] transition-all px-4 py-2 flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-widest shrink-0 h-[38px]"
-          >
-            <Plus size={14} />
-            <span className="hidden md:inline">NUEVO CONTACTO</span>
-          </button>
         </div>
+
+        <button 
+          onClick={() => {
+            setEditingContact(null);
+            setFormData({ type: 'SUPPLIER', name: '', document: '', phone: '', email: '' });
+            setShowModal(true);
+          }}
+          className="modern-btn-primary px-4 py-2 text-xs flex items-center gap-1.5 uppercase shrink-0"
+        >
+          <Plus size={14} />
+          <span>Nuevo Contacto</span>
+        </button>
       </div>
 
-      <div className="data-table-container flex-1 overflow-hidden flex flex-col">
-        <div className="grid grid-cols-[100px_minmax(150px,1fr)_120px_120px_minmax(150px,1fr)_100px] border-b border-[var(--border)] p-3 bg-[var(--bg-sidebar)] text-[9px] font-bold uppercase tracking-widest opacity-80 font-mono">
-          <div>TIPO</div>
-          <div>NOMBRE EMPRESA/CLIENTE</div>
-          <div>RUC / DNI</div>
-          <div>TELÉFONO</div>
-          <div>CORREO</div>
-          <div className="text-right">ACCIONES</div>
+      {/* Main Contacts Table */}
+      <div className="data-table-container bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <div className="grid grid-cols-[110px_minmax(160px,1.2fr)_130px_130px_minmax(160px,1fr)_110px] data-header sticky top-0 bg-[var(--bg-input)]/70 border-b border-[var(--border-soft)] py-2.5 px-3">
+          <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">TIPO</div>
+          <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">EMPRESA / CLIENTE</div>
+          <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">RUC / DNI</div>
+          <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">TELÉFONO</div>
+          <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">CORREO</div>
+          <div className="text-right text-[10px] font-bold uppercase text-[var(--ink)]/50 pr-2">ACCIONES</div>
         </div>
         
-        <div className="flex-1 overflow-auto">
+        <div className="overflow-y-auto">
           {filteredContacts.map(c => (
-            <div key={c.id} className="grid grid-cols-[100px_minmax(150px,1fr)_120px_120px_minmax(150px,1fr)_100px] data-row items-center py-3">
-              <div className="font-mono text-[9px] font-black uppercase">
-                <span className={`px-2 py-0.5 ${c.type === 'SUPPLIER' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--bg-card-alt)] text-[var(--ink)] border border-[var(--border)]'}`}>
+            <div key={c.id} className="grid grid-cols-[110px_minmax(160px,1.2fr)_130px_130px_minmax(160px,1fr)_110px] items-center py-3 px-3 border-b border-[var(--border-soft)]/50 hover:bg-[var(--bg-input)]/30 transition-colors text-xs">
+              <div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${
+                  c.type === 'SUPPLIER' 
+                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20' 
+                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                }`}>
                   {c.type === 'SUPPLIER' ? 'PROVEEDOR' : 'CLIENTE'}
                 </span>
               </div>
-              <div className="font-mono text-[11px] font-black truncate pr-2">{c.name}</div>
-              <div className="font-mono text-[10px] opacity-80">{c.document}</div>
-              <div className="font-mono text-[10px] opacity-80">{c.phone || '---'}</div>
-              <div className="font-mono text-[10px] opacity-80 truncate pr-2">{c.email || '---'}</div>
-              <div className="flex items-center justify-end gap-2 pr-2">
-                <button onClick={() => setHistoryContact(c)} title="Ver historial" className="p-1 hover:bg-[var(--ink)] hover:text-white transition-colors border border-transparent hover:border-[var(--border)]">
-                  <History size={12} />
+              <div className="font-bold text-[var(--ink)] truncate pr-2 flex items-center gap-1.5">
+                {c.type === 'SUPPLIER' ? <Building size={14} className="text-blue-500 shrink-0" /> : <Users size={14} className="text-emerald-500 shrink-0" />}
+                <span className="truncate">{c.name}</span>
+              </div>
+              <div className="font-mono text-[11px] font-semibold text-[var(--ink)]/80">{c.document}</div>
+              <div className="font-medium text-[var(--ink)]/70">{c.phone || '—'}</div>
+              <div className="font-medium text-[var(--ink)]/70 truncate pr-2">{c.email || '—'}</div>
+              <div className="flex items-center justify-end gap-1.5 pr-1">
+                <button 
+                  onClick={() => setHistoryContact(c)} 
+                  title="Ver historial de operaciones" 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors cursor-pointer"
+                >
+                  <History size={14} />
                 </button>
-                <button onClick={() => openEdit(c)} className="p-1 hover:bg-[var(--ink)] hover:text-white transition-colors border border-transparent hover:border-[var(--border)]">
-                  <Edit2 size={12} />
+                <button 
+                  onClick={() => openEdit(c)} 
+                  title="Editar contacto" 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[var(--border-soft)] text-[var(--ink)]/70 hover:text-[var(--ink)] transition-colors cursor-pointer"
+                >
+                  <Edit2 size={14} />
                 </button>
-                <button onClick={() => setConfirmDeleteId(c.id)} className="p-1 hover:bg-red-700 hover:text-white transition-colors border border-transparent hover:border-red-700 text-red-600">
-                  <Trash2 size={12} />
+                <button 
+                  onClick={() => setConfirmDeleteId(c.id)} 
+                  title="Eliminar contacto" 
+                  className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer"
+                >
+                  <Trash2 size={14} />
                 </button>
               </div>
             </div>
           ))}
           {filteredContacts.length === 0 && (
-            <div className="p-12 text-center font-mono text-sm opacity-50 font-bold uppercase">NO HAY CONTACTOS REGISTRADOS</div>
+            <div className="p-16 text-center text-xs font-semibold text-[var(--ink)]/50 uppercase tracking-wider">
+              No hay contactos registrados con los criterios seleccionados
+            </div>
           )}
         </div>
       </div>
 
+      {/* History Modal */}
       {historyContact && (
-        <div className="fixed inset-0 z-50 bg-[var(--bg)]/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[8px_8px_0_var(--border)] w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <div className="border-b-2 border-[var(--border)] p-4 flex justify-between items-center bg-[var(--bg-input)] shrink-0">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[var(--surface)] border border-[var(--border-soft)] shadow-2xl rounded-3xl w-full max-w-2xl max-h-[82vh] flex flex-col overflow-hidden">
+            <div className="border-b border-[var(--border-soft)] p-5 flex justify-between items-center bg-[var(--surface)] shrink-0">
               <div>
-                <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">HISTORIAL — {historyContact.name}</h2>
-                <p className="font-mono text-[9px] opacity-60 uppercase mt-0.5">{historyContact.type === 'SUPPLIER' ? 'PROVEEDOR' : 'CLIENTE'} · {historyContact.document}</p>
+                <h2 className="text-base font-black text-[var(--ink)] tracking-tight">Historial de Operaciones</h2>
+                <p className="text-xs text-[var(--ink)]/50 mt-0.5">{historyContact.name} · {historyContact.document} ({historyContact.type === 'SUPPLIER' ? 'Proveedor' : 'Cliente'})</p>
               </div>
-              <button onClick={() => setHistoryContact(null)} className="p-1 hover:bg-[var(--ink)] hover:text-white transition-colors border border-transparent hover:border-[var(--border)]">
-                <X size={14} />
+              <button 
+                onClick={() => setHistoryContact(null)} 
+                className="p-2 hover:bg-[var(--border-soft)] rounded-full transition-colors text-[var(--ink)]/60 hover:text-[var(--ink)]"
+              >
+                <X size={18} />
               </button>
             </div>
             {(() => {
@@ -174,17 +196,28 @@ export const Contacts: React.FC = () => {
               const totalDispatches = contactTxs.filter(t => t.type === 'DISPATCH').reduce((s, t) => s + t.quantity, 0);
               return (
                 <>
-                  <div className="flex gap-4 p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] shrink-0">
-                    <div className="font-mono text-[9px] font-bold uppercase"><span className="opacity-50">RECEPCIONES:</span> <span className="text-[#15803d]">{totalReceptions} U</span></div>
-                    <div className="font-mono text-[9px] font-bold uppercase"><span className="opacity-50">DESPACHOS:</span> <span className="text-[#b91c1c]">{totalDispatches} U</span></div>
-                    <div className="font-mono text-[9px] font-bold uppercase"><span className="opacity-50">TOTAL MOVS:</span> {contactTxs.length}</div>
+                  <div className="grid grid-cols-3 gap-3 p-4 border-b border-[var(--border-soft)] bg-[var(--bg-input)]/30 shrink-0 text-xs">
+                    <div className="bg-[var(--surface)] p-3 rounded-xl border border-[var(--border-soft)]">
+                      <span className="text-[10px] uppercase font-bold text-[var(--ink)]/40 block">Recepciones</span>
+                      <span className="text-base font-black text-emerald-500">{totalReceptions} u</span>
+                    </div>
+                    <div className="bg-[var(--surface)] p-3 rounded-xl border border-[var(--border-soft)]">
+                      <span className="text-[10px] uppercase font-bold text-[var(--ink)]/40 block">Despachos</span>
+                      <span className="text-base font-black text-rose-500">{totalDispatches} u</span>
+                    </div>
+                    <div className="bg-[var(--surface)] p-3 rounded-xl border border-[var(--border-soft)]">
+                      <span className="text-[10px] uppercase font-bold text-[var(--ink)]/40 block">Total Movs</span>
+                      <span className="text-base font-black text-[var(--ink)]">{contactTxs.length}</span>
+                    </div>
                   </div>
-                  <div className="overflow-auto flex-1">
+                  <div className="overflow-y-auto flex-1 p-4">
                     {contactTxs.length === 0 ? (
-                      <div className="p-12 text-center font-mono text-sm opacity-50 font-bold uppercase">SIN MOVIMIENTOS REGISTRADOS</div>
+                      <div className="p-12 text-center text-xs font-semibold text-[var(--ink)]/50 uppercase tracking-wider">
+                        Sin movimientos registrados con este contacto
+                      </div>
                     ) : (
-                      <>
-                        <div className="grid grid-cols-[110px_90px_90px_minmax(120px,1fr)_80px] p-2 bg-[var(--bg-sidebar)] text-[9px] font-bold uppercase tracking-widest opacity-80 font-mono border-b border-[var(--border)]">
+                      <div className="rounded-xl border border-[var(--border-soft)] overflow-hidden">
+                        <div className="grid grid-cols-[120px_90px_90px_minmax(120px,1fr)_80px] p-2.5 bg-[var(--bg-input)]/60 text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50 border-b border-[var(--border-soft)]">
                           <div>FECHA</div>
                           <div>TIPO</div>
                           <div>SKU</div>
@@ -193,18 +226,18 @@ export const Contacts: React.FC = () => {
                         </div>
                         {contactTxs.map(tx => {
                           const prod = products.find(p => p.id === tx.productId);
-                          const typeColor = tx.type === 'RECEPTION' ? 'bg-[#15803d] text-white' : tx.type === 'DISPATCH' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--bg-input)] border border-[var(--border)]';
+                          const typeStyle = tx.type === 'RECEPTION' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : tx.type === 'DISPATCH' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' : 'bg-blue-500/10 text-blue-600 border border-blue-500/20';
                           return (
-                            <div key={tx.id} className="grid grid-cols-[110px_90px_90px_minmax(120px,1fr)_80px] items-center py-2 px-2 border-b border-[var(--border)]/10 hover:bg-[var(--bg-card)] transition-colors">
-                              <div className="font-mono text-[9px] opacity-70">{format(new Date(tx.date), 'dd/MM/yy HH:mm')}</div>
-                              <div><span className={`font-mono text-[8px] font-bold px-1.5 py-0.5 uppercase ${typeColor}`}>{tx.type}</span></div>
-                              <div className="font-mono text-[10px] font-bold">{prod?.code || '???'}</div>
-                              <div className="font-mono text-[10px] truncate pr-2">{prod?.name || tx.reference}</div>
-                              <div className="font-mono text-sm font-black text-right">{tx.quantity}</div>
+                            <div key={tx.id} className="grid grid-cols-[120px_90px_90px_minmax(120px,1fr)_80px] items-center py-2 px-3 border-b border-[var(--border-soft)]/40 last:border-none hover:bg-[var(--bg-input)]/20 transition-colors text-xs">
+                              <div className="font-mono text-[11px] text-[var(--ink)]/70">{format(new Date(tx.date), 'dd/MM/yy HH:mm')}</div>
+                              <div><span className={`text-[9px] font-bold px-2 py-0.5 rounded-md uppercase ${typeStyle}`}>{tx.type}</span></div>
+                              <div className="font-mono text-xs font-bold text-[var(--ink)]">{prod?.code || '—'}</div>
+                              <div className="text-xs text-[var(--ink)]/80 truncate pr-2">{prod?.name || tx.reference}</div>
+                              <div className="font-mono text-sm font-black text-right text-[var(--ink)]">{tx.quantity}</div>
                             </div>
                           );
                         })}
-                      </>
+                      </div>
                     )}
                   </div>
                 </>
@@ -214,27 +247,35 @@ export const Contacts: React.FC = () => {
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {confirmDeleteId && (
-        <div className="fixed inset-0 z-50 bg-[var(--bg)]/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[8px_8px_0_var(--border)] w-full max-w-sm">
-            <div className="border-b-2 border-[var(--border)] p-4 flex items-center gap-3 bg-[var(--bg-input)]">
-              <AlertTriangle size={16} className="text-red-600 shrink-0" />
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">CONFIRMAR ELIMINACIÓN</h2>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[var(--surface)] border border-red-500/20 shadow-2xl rounded-3xl w-full max-w-sm overflow-hidden">
+            <div className="p-5 border-b border-[var(--border-soft)] flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-[var(--ink)] tracking-tight">Confirmar Eliminación</h2>
+                <p className="text-xs text-[var(--ink)]/50 mt-0.5">Esta acción no se puede deshacer</p>
+              </div>
             </div>
             <div className="p-5 flex flex-col gap-4">
-              <p className="font-mono text-[11px] text-[var(--ink)]">¿Estás seguro de que deseas eliminar este contacto? Esta acción no se puede deshacer.</p>
-              <div className="flex justify-end gap-3">
+              <p className="text-xs text-[var(--ink)]/80 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar este contacto del directorio?
+              </p>
+              <div className="flex justify-end gap-2.5 mt-2">
                 <button
                   onClick={() => setConfirmDeleteId(null)}
-                  className="px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest opacity-70 hover:opacity-100 transition-opacity"
+                  className="modern-btn px-4 py-2 text-xs uppercase"
                 >
-                  CANCELAR
+                  Cancelar
                 </button>
                 <button
                   onClick={() => { deleteContact(confirmDeleteId); setConfirmDeleteId(null); }}
-                  className="bg-red-700 text-white px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-red-800 transition-all shadow-[2px_2px_0_var(--border)]"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl transition-all uppercase"
                 >
-                  ELIMINAR
+                  Eliminar
                 </button>
               </div>
             </div>
@@ -242,76 +283,96 @@ export const Contacts: React.FC = () => {
         </div>
       )}
 
+      {/* New / Edit Contact Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-[var(--bg)]/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleSubmit} className="bg-[var(--bg)] border-2 border-[var(--border)] shadow-[8px_8px_0_var(--border)] w-full max-w-md">
-            <div className="border-b-2 border-[var(--border)] p-4 flex justify-between items-center bg-[var(--bg-input)]">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">{editingContact ? 'EDITAR CONTACTO' : 'NUEVO CONTACTO'}</h2>
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleSubmit} className="bg-[var(--surface)] border border-[var(--border-soft)] shadow-2xl rounded-3xl w-full max-w-md overflow-hidden">
+            <div className="p-5 border-b border-[var(--border-soft)] flex justify-between items-center">
+              <div>
+                <h2 className="text-base font-black text-[var(--ink)] tracking-tight">
+                  {editingContact ? 'Editar Contacto' : 'Nuevo Contacto'}
+                </h2>
+                <p className="text-xs text-[var(--ink)]/50 mt-0.5">Registra datos comerciales de la empresa o cliente</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="p-2 hover:bg-[var(--border-soft)] rounded-full transition-colors text-[var(--ink)]/60 hover:text-[var(--ink)]"
+              >
+                <X size={18} />
+              </button>
             </div>
             
-            <div className="p-5 flex flex-col gap-4">
+            <div className="p-6 flex flex-col gap-3.5">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TIPO</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Tipo de Relación *</label>
                 <select 
                   value={formData.type}
                   onChange={e => setFormData({...formData, type: e.target.value as 'SUPPLIER'|'CLIENT'})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 uppercase cursor-pointer"
                 >
                   <option value="SUPPLIER">PROVEEDOR</option>
                   <option value="CLIENT">CLIENTE</option>
                 </select>
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE / RAZÓN SOCIAL *</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Nombre / Razón Social *</label>
                 <input 
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 uppercase"
+                  placeholder="EJ: TEXTILES DEL SUR S.A.C."
                   required
                 />
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">RUC / DNI *</label>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">RUC / DNI *</label>
                 <input 
                   value={formData.document}
                   onChange={e => setFormData({...formData, document: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2.5 text-xs font-mono font-bold rounded-xl focus:outline-none focus:border-blue-500 uppercase"
+                  placeholder="EJ: 20601234567"
                   required
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TELÉFONO</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Teléfono</label>
                   <input 
                     value={formData.phone}
                     onChange={e => setFormData({...formData, phone: e.target.value})}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2.5 text-xs font-mono font-semibold rounded-xl focus:outline-none focus:border-blue-500"
+                    placeholder="999 888 777"
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CORREO</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Correo Electrónico</label>
                   <input 
                     type="email"
                     value={formData.email}
                     onChange={e => setFormData({...formData, email: e.target.value})}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500"
+                    placeholder="contacto@empresa.com"
                   />
                 </div>
               </div>
               
-              <div className="mt-4 flex justify-end gap-3">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-[var(--border-soft)] mt-2">
                 <button 
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-widest opacity-70 hover:opacity-100 transition-opacity"
+                  className="modern-btn px-4 py-2 text-xs uppercase"
                 >
-                  CANCELAR
+                  Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="bg-[var(--ink)] text-[var(--ink-inv)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-black transition-all shadow-[2px_2px_0_var(--border)]"
+                  className="modern-btn-primary px-5 py-2 text-xs uppercase"
                 >
-                  GUARDAR
+                  Guardar Contacto
                 </button>
               </div>
             </div>

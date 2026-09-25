@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Package, Truck, MapPin, Calendar, Search, ClipboardList, List, ChevronLeft, ChevronRight, X, Hash, Building2 } from 'lucide-react';
+import { Package, Truck, MapPin, Calendar, Search, ClipboardList, List, ChevronLeft, ChevronRight, X, Hash, Building2, Radio } from 'lucide-react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { TutorialModal, TutorialStep } from '../components/TutorialModal';
@@ -14,13 +14,13 @@ const BRANDS: Brand[] = ['OVERSHARK', 'BRAVOS', 'BOX_PRIME'];
 
 const LivexIllustrationFeed = () => (
   <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
-    <rect x="14" y="18" width="172" height="104" rx="2" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
+    <rect x="14" y="18" width="172" height="104" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
     {[0, 1, 2, 3].map(i => (
       <g key={i} opacity={1 - i * 0.18}>
-        <rect x="24" y={30 + i * 24} width="152" height="18" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
-        <rect x="30" y={35 + i * 24} width="6" height="8" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
-        <rect x="42" y={37 + i * 24} width="60" height="4" rx="1" fill="var(--border)" />
-        <rect x="150" y={37 + i * 24} width="18" height="4" rx="1" fill="#86efac" />
+        <rect x="24" y={30 + i * 24} width="152" height="18" rx="6" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+        <rect x="30" y={35 + i * 24} width="6" height="8" rx="2" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
+        <rect x="42" y={37 + i * 24} width="60" height="4" rx="2" fill="var(--border)" />
+        <rect x="150" y={37 + i * 24} width="18" height="4" rx="2" fill="#86efac" />
       </g>
     ))}
   </svg>
@@ -28,8 +28,8 @@ const LivexIllustrationFeed = () => (
 
 const LivexIllustrationCalendar = () => (
   <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
-    <rect x="30" y="20" width="140" height="100" rx="2" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
-    <rect x="30" y="20" width="140" height="18" fill="var(--ink)" />
+    <rect x="30" y="20" width="140" height="100" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
+    <rect x="30" y="20" width="140" height="20" rx="8" fill="var(--ink)" />
     <text x="100" y="33" textAnchor="middle" fontSize="8" fill="var(--ink-inv)" fontWeight="700" fontFamily="monospace">JULIO 2026</text>
     {Array.from({ length: 4 }, (_, row) => (
       <g key={row}>
@@ -37,8 +37,8 @@ const LivexIllustrationCalendar = () => (
           const has = (row * 6 + col) % 3 === 0;
           return (
             <g key={col} className={has ? 'tut-fade-up' : ''} style={has ? { animationDelay: `${(row * 6 + col) * 0.05}s` } : undefined}>
-              <rect x={38 + col * 22} y={44 + row * 18} width="18" height="14" rx="1" fill={has ? '#dcfce7' : 'var(--surface)'} stroke={has ? '#86efac' : 'var(--border)'} strokeWidth="1" />
-              {has && <circle cx={38 + col * 22 + 14} cy={44 + row * 18 + 4} r="2" fill="#15803d" />}
+              <rect x={38 + col * 22} y={46 + row * 18} width="18" height="14" rx="4" fill={has ? '#dcfce7' : 'var(--surface)'} stroke={has ? '#86efac' : 'var(--border)'} strokeWidth="1" />
+              {has && <circle cx={38 + col * 22 + 14} cy={46 + row * 18 + 4} r="2" fill="#15803d" />}
             </g>
           );
         })}
@@ -49,30 +49,18 @@ const LivexIllustrationCalendar = () => (
 
 const LivexIllustrationDetail = () => (
   <svg viewBox="0 0 200 140" className="w-full h-full" fill="none">
-    <rect x="24" y="14" width="152" height="112" rx="2" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
-    <rect x="24" y="14" width="152" height="20" fill="var(--surface)" />
+    <rect x="24" y="14" width="152" height="112" rx="8" fill="var(--bg-card)" stroke="var(--border)" strokeWidth="1.5" />
+    <rect x="24" y="14" width="152" height="22" rx="8" fill="var(--surface)" />
     <text x="100" y="27" textAnchor="middle" fontSize="7" fill="var(--ink)" fontWeight="700" fontFamily="monospace">08 DE JULIO, 2026</text>
-    <rect x="34" y="42" width="42" height="24" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+    <rect x="34" y="42" width="42" height="24" rx="6" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
     <text x="55" y="52" textAnchor="middle" fontSize="10" fill="var(--ink)" fontWeight="900" fontFamily="monospace">3</text>
     <text x="55" y="61" textAnchor="middle" fontSize="5" fill="var(--ink-50)" fontFamily="monospace">COMPROB.</text>
-    <rect x="79" y="42" width="42" height="24" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
+    <rect x="79" y="42" width="42" height="24" rx="6" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
     <text x="100" y="52" textAnchor="middle" fontSize="10" fill="#15803d" fontWeight="900" fontFamily="monospace">+84</text>
     <text x="100" y="61" textAnchor="middle" fontSize="5" fill="#15803d" fontFamily="monospace">UNIDADES</text>
-    <rect x="124" y="42" width="42" height="24" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
+    <rect x="124" y="42" width="42" height="24" rx="6" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
     <text x="145" y="52" textAnchor="middle" fontSize="10" fill="var(--ink)" fontWeight="900" fontFamily="monospace">2</text>
     <text x="145" y="61" textAnchor="middle" fontSize="5" fill="var(--ink-50)" fontFamily="monospace">PROVEED.</text>
-    <g className="tut-fade-up" style={{ animationDelay: '0.3s' }}>
-      <rect x="34" y="76" width="132" height="16" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
-      <rect x="40" y="80" width="8" height="8" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
-      <rect x="54" y="83" width="50" height="3" rx="1" fill="var(--border)" />
-      <text x="155" y="87" textAnchor="middle" fontSize="8" fill="#15803d" fontWeight="900" fontFamily="monospace">+24</text>
-    </g>
-    <g className="tut-fade-up" style={{ animationDelay: '0.6s' }}>
-      <rect x="34" y="96" width="132" height="16" rx="1" fill="var(--surface)" stroke="var(--border)" strokeWidth="1" />
-      <rect x="40" y="100" width="8" height="8" rx="1" fill="#dcfce7" stroke="#86efac" strokeWidth="1" />
-      <rect x="54" y="103" width="50" height="3" rx="1" fill="var(--border)" />
-      <text x="155" y="107" textAnchor="middle" fontSize="8" fill="#15803d" fontWeight="900" fontFamily="monospace">+18</text>
-    </g>
   </svg>
 );
 
@@ -98,39 +86,60 @@ const LIVEX_TUTORIAL_STEPS: TutorialStep[] = [
     ],
   },
   {
-    title: 'Detalle de un día',
-    description: 'Haz clic en cualquier día del calendario para ver el detalle completo: cuántos comprobantes hubo, cuántas unidades entraron, y de qué proveedores — agrupado y ordenado para revisar rápido.',
+    title: 'Detalle por Día',
+    description: 'Haz clic en cualquier día del calendario para abrir la ventana con todos los comprobantes que ingresaron esa fecha, organizados por proveedor y producto.',
     illustration: <LivexIllustrationDetail />,
     tips: [
-      'Los productos se agrupan por proveedor para facilitar la lectura',
-      'Usa los botones de producto arriba para filtrar solo ese artículo',
-      'Cada tarjeta muestra producto, cantidad, referencia y ubicación',
+      'Usa los filtros superiores para ver un solo producto a la vez',
+      'Cada tarjeta desglosa las variantes con su color, talla y ubicación',
+      'Presiona ESC o haz clic fuera para cerrar la ventana',
     ],
   },
 ];
 
 const MONTH_LABEL = [
-  'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
-  'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE',
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ];
-const WEEKDAY_LABEL = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+const WEEKDAY_LABEL = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
-function fmtDateTime(iso: string) {
-  return new Date(iso).toLocaleString('es-PE', {
-    timeZone: 'America/Lima', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+function limaDayKey(isoString: string): string {
+  try {
+    const d = new Date(isoString);
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Lima',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+    const y = parts.find(p => p.type === 'year')?.value ?? '1970';
+    const m = parts.find(p => p.type === 'month')?.value ?? '01';
+    const day = parts.find(p => p.type === 'day')?.value ?? '01';
+    return `${y}-${m}-${day}`;
+  } catch {
+    return isoString.slice(0, 10);
+  }
 }
 
-/** Clave YYYY-MM-DD de una fecha ISO, en hora de Lima (UTC-5, sin DST). */
-function limaDayKey(iso: string): string {
-  const limaMs = new Date(iso).getTime() - 5 * 60 * 60 * 1000;
-  return new Date(limaMs).toISOString().slice(0, 10);
+function fmtDayLong(dayKey: string): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${d} de ${MONTH_LABEL[m - 1]}, ${y}`;
 }
 
-function fmtDayLong(key: string) {
-  return new Date(key + 'T00:00:00').toLocaleDateString('es-PE', {
-    day: '2-digit', month: 'long', year: 'numeric',
-  });
+function fmtDateTime(isoString: string): string {
+  try {
+    return new Intl.DateTimeFormat('es-PE', {
+      timeZone: 'America/Lima',
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(isoString));
+  } catch {
+    return isoString.slice(0, 16);
+  }
 }
 
 interface Row {
@@ -142,41 +151,59 @@ interface Row {
 
 const ReceptionRow: React.FC<Row> = ({ tx, product, location, supplierName }) => {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-4 py-3">
-      <div className="flex items-center gap-2 sm:w-36 shrink-0">
-        <Hash size={12} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.7 }} />
-        <span className="font-mono font-black text-[11px] uppercase tracking-wider truncate" style={{ color: 'var(--ink)' }}>{tx.reference}</span>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 hover:bg-[var(--surface-alt)]/40 transition-colors">
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/20">
+          <Package size={17} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono text-xs font-bold text-[var(--ink)] truncate">
+              {product?.name ?? tx.productId}
+            </span>
+            {product?.color && (
+              <span className="font-mono text-[10px] text-[var(--ink)]/50 bg-[var(--surface-alt)] px-1.5 py-0.5 rounded-md">
+                {product.color}
+              </span>
+            )}
+            {product?.size && (
+              <span className="font-mono text-[10px] text-[var(--ink)]/50 bg-[var(--surface-alt)] px-1.5 py-0.5 rounded-md">
+                Talla {product.size}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 font-mono text-[10px] text-[var(--ink)]/40 mt-1 flex-wrap">
+            <span className="flex items-center gap-1 font-semibold text-[var(--ink)]/60">
+              <Hash size={11} /> {tx.reference}
+            </span>
+            {supplierName && (
+              <span className="flex items-center gap-1">
+                <Truck size={11} /> {supplierName}
+              </span>
+            )}
+            {location && (
+              <span className="flex items-center gap-1">
+                <MapPin size={11} /> {location.name}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
-        <Package size={12} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.8 }} />
-        <span className="font-mono text-[12px] font-bold truncate" style={{ color: 'var(--ink)' }}>{product?.name ?? tx.productId}</span>
-        {product?.color && <span className="font-mono text-[10px] font-bold uppercase shrink-0" style={{ color: 'var(--ink)', opacity: 0.85 }}>· {product.color}</span>}
-        {product?.size && <span className="font-mono text-[10px] font-bold uppercase shrink-0" style={{ color: 'var(--ink)', opacity: 0.85 }}>· {product.size}</span>}
-        <span className="font-mono text-[10px] font-bold shrink-0 ml-1 text-green-600">+{tx.quantity} uds</span>
-      </div>
+      <div className="flex items-center gap-4 shrink-0 sm:justify-end">
+        <span className="font-mono text-sm font-bold text-emerald-600 dark:text-emerald-400">
+          +{tx.quantity} uds
+        </span>
 
-      {supplierName && (
-        <div className="flex items-center gap-1.5 sm:w-40 shrink-0" style={{ color: 'var(--ink)', opacity: 0.9 }}>
-          <Truck size={12} className="shrink-0" />
-          <span className="font-mono text-[11px] font-bold truncate">{supplierName}</span>
-        </div>
-      )}
+        <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[9px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+          RECEPCIÓN
+        </span>
 
-      {location && (
-        <div className="hidden md:flex items-center gap-1.5 sm:w-32 shrink-0" style={{ color: 'var(--ink)', opacity: 0.8 }}>
-          <MapPin size={11} className="shrink-0" />
-          <span className="font-mono text-[10px] font-semibold truncate">{location.name}</span>
-        </div>
-      )}
-
-      <span className="font-mono text-[9px] font-bold uppercase tracking-wider px-2 py-1 border rounded-sm shrink-0 bg-green-500/10 text-green-700 border-green-400">
-        RECEPCIÓN
-      </span>
-
-      <div className="flex items-center gap-1.5 sm:w-36 shrink-0 justify-start sm:justify-end" style={{ color: 'var(--ink)', opacity: 0.7 }}>
-        <Calendar size={11} className="shrink-0" />
-        <span className="font-mono text-[10px] font-semibold whitespace-nowrap">{fmtDateTime(tx.date)}</span>
+        <span className="font-mono text-[10px] text-[var(--ink)]/40 whitespace-nowrap hidden sm:block">
+          {fmtDateTime(tx.date)}
+        </span>
       </div>
     </div>
   );
@@ -230,24 +257,24 @@ function groupByProduct(rows: Row[]): ProductGroup[] {
 const VariantLine: React.FC<{ row: Row }> = ({ row }) => {
   const { tx, product, location } = row;
   return (
-    <div className="flex items-center gap-2.5 px-2.5 py-1.5 flex-wrap sm:flex-nowrap">
+    <div className="flex items-center gap-2.5 px-3 py-2 text-xs flex-wrap sm:flex-nowrap hover:bg-[var(--surface-alt)]/30 transition-colors">
       {(product?.color || product?.size) ? (
-        <span className="font-mono text-[10px] font-bold uppercase shrink-0 sm:w-28 truncate" style={{ color: 'var(--ink)', opacity: 0.85 }}>
+        <span className="font-mono text-xs font-bold text-[var(--ink)] shrink-0 sm:w-32 truncate">
           {[product?.color, product?.size].filter(Boolean).join(' · ')}
         </span>
       ) : (
-        <span className="font-mono text-[10px] font-medium shrink-0 sm:w-28 opacity-40">—</span>
+        <span className="font-mono text-xs text-[var(--ink)]/40 shrink-0 sm:w-32">—</span>
       )}
-      <span className="font-mono text-[9px] font-semibold flex items-center gap-1 shrink-0" style={{ color: 'var(--ink)', opacity: 0.7 }}>
-        <Hash size={9} className="shrink-0" />{tx.reference}
+      <span className="font-mono text-[10px] text-[var(--ink)]/60 flex items-center gap-1 shrink-0">
+        <Hash size={10} className="shrink-0" />{tx.reference}
       </span>
       {location && (
-        <span className="font-mono text-[9px] font-semibold flex items-center gap-1 shrink-0 sm:w-28 truncate" style={{ color: 'var(--ink)', opacity: 0.7 }}>
-          <MapPin size={9} className="shrink-0" />{location.name}
+        <span className="font-mono text-[10px] text-[var(--ink)]/60 flex items-center gap-1 shrink-0 sm:w-28 truncate">
+          <MapPin size={10} className="shrink-0" />{location.name}
         </span>
       )}
-      <span className="font-mono text-[9px] font-medium shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }}>{fmtDateTime(tx.date)}</span>
-      <span className="font-mono font-black text-[11px] text-green-600 shrink-0 ml-auto">+{tx.quantity}</span>
+      <span className="font-mono text-[10px] text-[var(--ink)]/40 shrink-0">{fmtDateTime(tx.date)}</span>
+      <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 shrink-0 ml-auto">+{tx.quantity}</span>
     </div>
   );
 };
@@ -255,22 +282,24 @@ const VariantLine: React.FC<{ row: Row }> = ({ row }) => {
 const ProductGroupCard: React.FC<{ group: ProductGroup }> = ({ group }) => {
   const isSingleVariant = group.rows.length === 1;
   return (
-    <div className="border border-[var(--border-soft)] bg-[var(--surface)]">
-      <div className="flex items-center gap-3 px-3.5 py-2.5">
-        <div className="w-8 h-8 rounded-sm bg-green-500/10 border border-green-500/30 flex items-center justify-center shrink-0">
-          <Package size={14} className="text-green-600" />
+    <div className="border border-[var(--border-soft)] bg-[var(--surface)] rounded-2xl overflow-hidden shadow-xs">
+      <div className="flex items-center gap-3 px-4 py-3 bg-[var(--surface-alt)]/30 border-b border-[var(--border-soft)]">
+        <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+          <Package size={14} className="text-emerald-600" />
         </div>
-        <span className="font-mono text-[12px] font-black uppercase tracking-wide truncate flex-1 min-w-0" style={{ color: 'var(--ink)' }}>
+        <span className="font-mono text-xs font-bold text-[var(--ink)] truncate flex-1 min-w-0">
           {group.productName}
         </span>
         {!isSingleVariant && (
-          <span className="font-mono text-[9px] font-bold uppercase tracking-wider shrink-0" style={{ color: 'var(--ink)', opacity: 0.55 }}>
+          <span className="font-mono text-[10px] text-[var(--ink)]/40 uppercase tracking-wider shrink-0">
             {group.rows.length} variantes
           </span>
         )}
-        <span className="font-mono font-black text-base text-green-600 shrink-0">+{group.qty}</span>
+        <span className="font-mono font-bold text-sm text-emerald-600 dark:text-emerald-400 shrink-0">
+          +{group.qty}
+        </span>
       </div>
-      <div className="flex flex-col divide-y divide-[var(--border-soft)] border-t border-[var(--border-soft)]">
+      <div className="flex flex-col divide-y divide-[var(--border-soft)]">
         {group.rows.map(row => <VariantLine key={row.tx.id} row={row} />)}
       </div>
     </div>
@@ -283,7 +312,6 @@ interface ProductFilterOption {
   qty: number;
 }
 
-/** Agrupa por nombre de producto (no por variante de color/talla) */
 function productGroupKey(row: Row): string {
   return row.product?.name ?? row.tx.productId;
 }
@@ -311,47 +339,46 @@ function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onCl
   const groups = useMemo(() => groupBySupplier(filteredRows), [filteredRows]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-[var(--bg)] border border-[var(--border)] shadow-[4px_4px_0_var(--border)] w-full max-w-2xl max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden animate-scale-in">
         {/* Header */}
-        <div className="border-b border-[var(--border)] px-5 py-4 flex justify-between items-start shrink-0">
-          <div className="flex flex-col gap-1">
-            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.25em]" style={{ color: 'var(--ink)', opacity: 0.6 }}>Recepciones del día</span>
-            <span className="font-mono font-black text-base uppercase tracking-wide" style={{ color: 'var(--ink)' }}>{fmtDayLong(dayKey)}</span>
+        <div className="border-b border-[var(--border-soft)] px-6 py-4 flex justify-between items-center bg-[var(--surface-alt)]/50 shrink-0">
+          <div>
+            <span className="font-mono text-[10px] text-[var(--ink)]/40 uppercase tracking-wider block">Recepciones del Día</span>
+            <h3 className="font-mono font-bold text-base text-[var(--ink)] mt-0.5">{fmtDayLong(dayKey)}</h3>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-[var(--ink)]/10 rounded-sm transition-colors shrink-0">
-            <X size={16} />
+          <button onClick={onClose} className="p-1.5 text-[var(--ink)]/40 hover:text-[var(--ink)] hover:bg-[var(--surface-alt)] rounded-xl transition-colors shrink-0">
+            <X size={18} />
           </button>
         </div>
 
         {/* KPI summary */}
         {rows.length > 0 && (
-          <div className="grid grid-cols-3 border-b border-[var(--border)] shrink-0">
-            <div className="flex flex-col items-center justify-center gap-0.5 py-3 border-r border-[var(--border)]">
-              <span className="font-mono font-black text-xl" style={{ color: 'var(--ink)' }}>{rows.length}</span>
-              <span className="font-mono text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.6 }}>Comprobantes</span>
+          <div className="grid grid-cols-3 border-b border-[var(--border-soft)] shrink-0 bg-[var(--surface-alt)]/20">
+            <div className="flex flex-col items-center justify-center py-3 border-r border-[var(--border-soft)]">
+              <span className="font-mono font-black text-xl text-[var(--ink)]">{rows.length}</span>
+              <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink)]/40">Comprobantes</span>
             </div>
-            <div className="flex flex-col items-center justify-center gap-0.5 py-3 border-r border-[var(--border)]">
-              <span className="font-mono font-black text-xl text-green-600">+{totalQty}</span>
-              <span className="font-mono text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.6 }}>Unidades</span>
+            <div className="flex flex-col items-center justify-center py-3 border-r border-[var(--border-soft)]">
+              <span className="font-mono font-black text-xl text-emerald-600 dark:text-emerald-400">+{totalQty}</span>
+              <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink)]/40">Unidades</span>
             </div>
-            <div className="flex flex-col items-center justify-center gap-0.5 py-3">
-              <span className="font-mono font-black text-xl" style={{ color: 'var(--ink)' }}>{totalSuppliers}</span>
-              <span className="font-mono text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'var(--ink)', opacity: 0.6 }}>Proveedores</span>
+            <div className="flex flex-col items-center justify-center py-3">
+              <span className="font-mono font-black text-xl text-[var(--ink)]">{totalSuppliers}</span>
+              <span className="font-mono text-[9px] uppercase tracking-wider text-[var(--ink)]/40">Proveedores</span>
             </div>
           </div>
         )}
 
         {/* Product filter chips */}
         {productFilters.length > 1 && (
-          <div className="flex items-center gap-1.5 px-4 py-3 border-b border-[var(--border)] overflow-x-auto shrink-0">
+          <div className="flex items-center gap-1.5 px-6 py-3 border-b border-[var(--border-soft)] overflow-x-auto shrink-0 bg-[var(--surface)]">
             <button
               onClick={() => setProductFilter(null)}
               className={cn(
-                'font-mono text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 border rounded-sm shrink-0 transition-colors',
-                productFilter === null ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--ink)]' : 'border-[var(--border)]'
+                'font-mono text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-xl border shrink-0 transition-colors',
+                productFilter === null ? 'bg-[var(--ink)] text-[var(--ink-inv)] border-transparent' : 'border-[var(--border-soft)] text-[var(--ink)]/60 hover:text-[var(--ink)]'
               )}
-              style={productFilter === null ? undefined : { color: 'var(--ink)', opacity: 0.75 }}
             >
               Todos
             </button>
@@ -360,10 +387,9 @@ function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onCl
                 key={p.key}
                 onClick={() => setProductFilter(prev => prev === p.key ? null : p.key)}
                 className={cn(
-                  'font-mono text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 border rounded-sm shrink-0 transition-colors whitespace-nowrap',
-                  productFilter === p.key ? 'bg-green-600 text-white border-green-600' : 'border-[var(--border)]'
+                  'font-mono text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-xl border shrink-0 transition-colors whitespace-nowrap',
+                  productFilter === p.key ? 'bg-emerald-600 text-white border-transparent' : 'border-[var(--border-soft)] text-[var(--ink)]/60 hover:text-[var(--ink)]'
                 )}
-                style={productFilter === p.key ? undefined : { color: 'var(--ink)', opacity: 0.75 }}
               >
                 {p.label} <span className="opacity-80">+{p.qty}</span>
               </button>
@@ -372,29 +398,29 @@ function DayModal({ dayKey, rows, onClose }: { dayKey: string; rows: Row[]; onCl
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {rows.length === 0 ? (
-            <div className="py-10 flex flex-col items-center gap-2 opacity-30">
-              <ClipboardList size={28} />
-              <span className="font-mono text-[10px] uppercase tracking-widest">Sin recepciones este día</span>
+            <div className="py-12 flex flex-col items-center gap-2 text-[var(--ink)]/30">
+              <ClipboardList size={32} />
+              <span className="font-mono text-xs uppercase tracking-wider">Sin recepciones este día</span>
             </div>
           ) : filteredRows.length === 0 ? (
-            <div className="py-10 flex flex-col items-center gap-2 opacity-30">
-              <Package size={28} />
-              <span className="font-mono text-[10px] uppercase tracking-widest">Sin resultados para este producto</span>
+            <div className="py-12 flex flex-col items-center gap-2 text-[var(--ink)]/30">
+              <Package size={32} />
+              <span className="font-mono text-xs uppercase tracking-wider">Sin resultados para este producto</span>
             </div>
           ) : (
             groups.map(group => (
-              <div key={group.supplierName} className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 px-0.5">
-                  <Building2 size={13} className="shrink-0" style={{ color: 'var(--ink)', opacity: 0.65 }} />
-                  <span className="font-mono text-[11px] font-black uppercase tracking-wider" style={{ color: 'var(--ink)' }}>{group.supplierName}</span>
+              <div key={group.supplierName} className="space-y-2">
+                <div className="flex items-center gap-2 px-1">
+                  <Building2 size={14} className="text-[var(--ink)]/50 shrink-0" />
+                  <span className="font-mono text-xs font-bold text-[var(--ink)] uppercase tracking-wide">{group.supplierName}</span>
                   <span className="h-px flex-1 bg-[var(--border-soft)]" />
-                  <span className="font-mono text-[10px] font-bold shrink-0" style={{ color: 'var(--ink)', opacity: 0.6 }}>
-                    {group.rows.length} · +{group.qty} uds
+                  <span className="font-mono text-[10px] text-[var(--ink)]/50 font-bold shrink-0">
+                    {group.rows.length} comprobantes · +{group.qty} uds
                   </span>
                 </div>
-                <div className="flex flex-col gap-1.5">
+                <div className="space-y-2">
                   {groupByProduct(group.rows).map(pg => <ProductGroupCard key={pg.productName} group={pg} />)}
                 </div>
               </div>
@@ -424,34 +450,36 @@ function CalendarView({ rowsByDay, monthCursor, setMonthCursor, onSelectDay }: {
   ];
 
   return (
-    <div className="border border-[var(--border)] bg-[var(--bg-card)] flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+    <div className="modern-card rounded-3xl overflow-hidden shadow-xs border border-[var(--border-soft)]">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-soft)] bg-[var(--surface-alt)]/40">
         <button
           onClick={() => setMonthCursor(new Date(year, month - 1, 1))}
-          className="p-1.5 border border-[var(--border)]/30 hover:border-[var(--border)] transition-colors"
+          className="p-2 rounded-xl border border-[var(--border-soft)] hover:bg-[var(--surface)] text-[var(--ink)]/60 hover:text-[var(--ink)] transition-colors"
         >
-          <ChevronLeft size={14} />
+          <ChevronLeft size={16} />
         </button>
-        <span className="font-mono font-black text-sm uppercase tracking-widest" style={{ color: 'var(--ink)' }}>{MONTH_LABEL[month]} {year}</span>
+        <span className="font-mono font-bold text-sm uppercase tracking-wider text-[var(--ink)]">
+          {MONTH_LABEL[month]} {year}
+        </span>
         <button
           onClick={() => setMonthCursor(new Date(year, month + 1, 1))}
-          className="p-1.5 border border-[var(--border)]/30 hover:border-[var(--border)] transition-colors"
+          className="p-2 rounded-xl border border-[var(--border-soft)] hover:bg-[var(--surface)] text-[var(--ink)]/60 hover:text-[var(--ink)] transition-colors"
         >
-          <ChevronRight size={14} />
+          <ChevronRight size={16} />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 border-b border-[var(--border)]/30">
+      <div className="grid grid-cols-7 border-b border-[var(--border-soft)] bg-[var(--surface-alt)]/20">
         {WEEKDAY_LABEL.map(w => (
-          <div key={w} className="font-mono text-[9px] font-bold uppercase tracking-widest text-center py-2" style={{ color: 'var(--ink)', opacity: 0.55 }}>
+          <div key={w} className="font-mono text-[10px] font-bold uppercase tracking-wider text-center py-2.5 text-[var(--ink)]/50">
             {w}
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-7">
+      <div className="grid grid-cols-7 divide-x divide-y divide-[var(--border-soft)]">
         {cells.map((key, i) => {
-          if (!key) return <div key={i} className="aspect-square sm:aspect-auto sm:h-24 border-b border-r border-[var(--border)]/10" />;
+          if (!key) return <div key={i} className="aspect-square sm:aspect-auto sm:h-24 bg-[var(--surface-alt)]/10" />;
           const dayRows = rowsByDay.get(key) ?? [];
           const qty = dayRows.reduce((sum, r) => sum + r.tx.quantity, 0);
           const isToday = key === todayKey;
@@ -460,22 +488,24 @@ function CalendarView({ rowsByDay, monthCursor, setMonthCursor, onSelectDay }: {
               key={i}
               onClick={() => onSelectDay(key)}
               className={cn(
-                'aspect-square sm:aspect-auto sm:h-24 border-b border-r border-[var(--border)]/10 flex flex-col items-start p-1.5 sm:p-2 gap-1 text-left transition-colors hover:bg-[var(--surface)]',
-                dayRows.length === 0 && 'opacity-40'
+                'aspect-square sm:aspect-auto sm:h-24 p-2 sm:p-2.5 flex flex-col items-start justify-between text-left transition-all hover:bg-[var(--surface-alt)]/50',
+                dayRows.length === 0 && 'opacity-40 hover:opacity-100'
               )}
             >
               <span className={cn(
-                'font-mono text-[11px] font-bold w-5 h-5 flex items-center justify-center rounded-full shrink-0',
-                isToday ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : ''
-              )} style={isToday ? undefined : { color: 'var(--ink)' }}>
+                'font-mono text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shrink-0',
+                isToday ? 'bg-[var(--ink)] text-[var(--ink-inv)] shadow-xs' : 'text-[var(--ink)]'
+              )}>
                 {Number(key.slice(-2))}
               </span>
               {dayRows.length > 0 && (
-                <div className="flex flex-col gap-0.5 w-full">
-                  <span className="font-mono text-[9px] font-black uppercase tracking-wider truncate" style={{ color: '#16a34a' }}>
+                <div className="flex flex-col gap-0.5 w-full mt-1">
+                  <span className="font-mono text-[10px] font-bold text-emerald-600 dark:text-emerald-400 truncate">
                     {dayRows.length} rec.
                   </span>
-                  <span className="font-mono text-[8px] font-semibold truncate hidden sm:block" style={{ color: 'var(--ink)', opacity: 0.65 }}>{qty} uds</span>
+                  <span className="font-mono text-[9px] text-[var(--ink)]/50 truncate hidden sm:block">
+                    +{qty} uds
+                  </span>
                 </div>
               )}
             </button>
@@ -532,7 +562,7 @@ export const LivexFeed: React.FC = () => {
   }, [rows]);
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col gap-5 pb-12">
+    <div className="w-full max-w-7xl mx-auto space-y-6 pb-12 animate-fade-in">
       <TutorialModal
         open={showTutorial}
         onClose={() => setShowTutorial(false)}
@@ -540,34 +570,25 @@ export const LivexFeed: React.FC = () => {
         title="Livex"
       />
 
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo
-            number="LX"
-            title="Livex — Feed de Recepciones"
-            description="Bitácora de solo lectura: cada comprobante de recepción (lo que se sube al inventario) aparece aquí. Cambia a calendario para ver qué se subió cada día."
-          />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" />
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
+      {/* Module Header */}
+      <ModuleInfo
+        number="LX"
+        title="Livex — Feed de Recepciones"
+        description="Bitácora en vivo de solo lectura: cada comprobante de recepción ingresado a bodega aparece aquí cronológicamente o por vista de calendario."
+        onTutorial={() => setShowTutorial(true)}
+      />
 
-      <div className="flex border border-[var(--border)] bg-[var(--bg-sidebar)] shrink-0">
+      {/* Brand Selector Tabs */}
+      <div className="flex p-1.5 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl shadow-xs gap-1.5 overflow-x-auto">
         {BRANDS.map(b => (
           <button
             key={b}
             onClick={() => setActiveBrand(b)}
             className={cn(
-              'flex-1 px-3 py-2.5 font-mono text-[10px] font-black uppercase tracking-widest transition-all border-r last:border-r-0 border-[var(--border)]',
-              activeBrand === b ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'opacity-50 hover:opacity-100'
+              'flex-1 px-4 py-2.5 rounded-xl font-mono text-xs font-bold uppercase tracking-wider transition-all duration-200 whitespace-nowrap',
+              activeBrand === b 
+                ? 'bg-[var(--ink)] text-[var(--ink-inv)] shadow-sm' 
+                : 'text-[var(--ink)]/60 hover:text-[var(--ink)] hover:bg-[var(--surface-alt)]'
             )}
           >
             {BRAND_LABEL[b]}
@@ -575,39 +596,64 @@ export const LivexFeed: React.FC = () => {
         ))}
       </div>
 
-      <div className="flex items-center gap-2 border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2.5">
-        <Search size={14} className="opacity-40 shrink-0" />
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar por referencia, proveedor o producto..."
-          className="flex-1 bg-transparent outline-none font-mono text-xs"
-        />
-        <span className="font-mono text-[10px] font-semibold shrink-0" style={{ color: 'var(--ink)', opacity: 0.6 }}>{rows.length} registros</span>
-        <div className="flex border border-[var(--border)] shrink-0">
-          <button
-            onClick={() => setView('feed')}
-            title="Vista de lista"
-            className={cn('p-1.5 transition-colors', view === 'feed' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'opacity-50 hover:opacity-100')}
-          >
-            <List size={14} />
-          </button>
-          <button
-            onClick={() => setView('calendar')}
-            title="Vista de calendario"
-            className={cn('p-1.5 transition-colors border-l border-[var(--border)]', view === 'calendar' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'opacity-50 hover:opacity-100')}
-          >
-            <Calendar size={14} />
-          </button>
+      {/* Search & View Switcher Bar */}
+      <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap bg-[var(--surface)] border border-[var(--border-soft)] p-3 rounded-2xl shadow-xs">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink)]/40" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por referencia, proveedor o producto..."
+            className="input-technical rounded-xl text-xs py-2 pl-10 pr-4 w-full"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="font-mono text-xs text-[var(--ink)]/50">
+            <strong>{rows.length}</strong> recepciones
+          </span>
+
+          <div className="flex p-1 bg-[var(--surface-alt)] border border-[var(--border-soft)] rounded-xl gap-1">
+            <button
+              onClick={() => setView('feed')}
+              title="Vista de Lista"
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all',
+                view === 'feed' 
+                  ? 'bg-[var(--ink)] text-[var(--ink-inv)] shadow-xs' 
+                  : 'text-[var(--ink)]/60 hover:text-[var(--ink)]'
+              )}
+            >
+              <List size={14} />
+              <span className="hidden sm:inline">Lista</span>
+            </button>
+            <button
+              onClick={() => setView('calendar')}
+              title="Vista de Calendario"
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-xs font-bold transition-all',
+                view === 'calendar' 
+                  ? 'bg-[var(--ink)] text-[var(--ink-inv)] shadow-xs' 
+                  : 'text-[var(--ink)]/60 hover:text-[var(--ink)]'
+              )}
+            >
+              <Calendar size={14} />
+              <span className="hidden sm:inline">Calendario</span>
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* Main View Content */}
       {view === 'feed' ? (
-        <div className="border border-[var(--border)] bg-[var(--bg-card)] flex flex-col divide-y" style={{ borderColor: 'var(--border)' }}>
+        <div className="modern-card rounded-3xl overflow-hidden p-0 divide-y divide-[var(--border-soft)] shadow-sm">
           {rows.length === 0 ? (
-            <div className="px-4 py-10 flex flex-col items-center gap-2 opacity-30">
-              <ClipboardList size={28} />
-              <span className="font-mono text-[10px] uppercase tracking-widest">Sin recepciones registradas</span>
+            <div className="p-16 flex flex-col items-center justify-center gap-3 text-[var(--ink)]/40 text-center">
+              <ClipboardList size={36} className="opacity-30" />
+              <h4 className="font-mono text-sm font-bold text-[var(--ink)]">Sin recepciones registradas</h4>
+              <p className="font-mono text-xs text-[var(--ink)]/40 max-w-sm">
+                No hay movimientos de recepción que coincidan con la búsqueda actual.
+              </p>
             </div>
           ) : (
             rows.map(row => (

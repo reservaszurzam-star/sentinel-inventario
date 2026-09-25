@@ -1,9 +1,9 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { ChevronDown, ChevronUp, Filter, Download, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, Download, RefreshCw, Calendar, Database, ShieldAlert } from 'lucide-react';
 import type { AuditAction, AuditLogEntry } from '../types';
 import { TutorialModal, OPERATION_HISTORY_TUTORIAL_STEPS } from '../components/TutorialModal';
 
@@ -30,9 +30,9 @@ const ACTION_LABEL: Record<AuditAction, string> = {
 };
 
 const ACTION_COLOR: Record<AuditAction, string> = {
-  INSERT: 'border-green-700 text-green-700',
-  UPDATE: 'border-blue-700 text-blue-700',
-  DELETE: 'border-red-700 text-red-700',
+  INSERT: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20',
+  UPDATE: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20',
+  DELETE: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20',
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ const exportCSV = (rows: AuditLogEntry[]) => {
     summarize(r),
   ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
   const csv = [headers.join(','), ...lines].join('\n');
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -106,13 +106,11 @@ const exportCSV = (rows: AuditLogEntry[]) => {
   URL.revokeObjectURL(url);
 };
 
-// ─── Page ──────────────────────────────────────────────────────────────────────
-
 export const OperationHistory: React.FC = () => {
   const { auditLog, refreshAuditLog, currentUser } = useAppContext();
-  const [filterTable, setFilterTable] = useState<string>('ALL');
+  const [filterTable, setFilterTable] = useState('ALL');
   const [filterAction, setFilterAction] = useState<'ALL' | AuditAction>('ALL');
-  const [filterBrand, setFilterBrand] = useState<string>('ALL');
+  const [filterBrand, setFilterBrand] = useState('ALL');
   const [filterDateChanges, setFilterDateChanges] = useState(false);
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -123,10 +121,11 @@ export const OperationHistory: React.FC = () => {
 
   if (currentUser.role !== 'ADMIN_GENERAL') {
     return (
-      <div className="flex flex-col gap-6 h-full relative">
+      <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 pb-12">
         <ModuleInfo number="14" title="Historial General" description="Registro completo de todas las acciones del sistema." />
-        <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest border border-[var(--border)]/20 bg-[var(--surface-alt)]">
-          Solo ADMIN_GENERAL puede ver el historial completo.
+        <div className="p-16 text-center text-xs font-semibold text-[var(--ink)]/50 uppercase tracking-wider bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl shadow-sm flex flex-col items-center gap-2">
+          <ShieldAlert size={28} className="text-amber-500" />
+          <span>Solo ADMIN_GENERAL tiene autorización para auditar el historial completo.</span>
         </div>
       </div>
     );
@@ -181,183 +180,228 @@ export const OperationHistory: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full relative">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 pb-12">
       <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={OPERATION_HISTORY_TUTORIAL_STEPS} title="Historial General" />
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo number="14" title="Historial General" description="Registro auditado de todas las acciones del sistema: creaciones, ediciones, borrados y cambios de stock — qué se hizo, quién lo hizo y cuándo." />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
+      
+      {/* Modern Hero Module Header */}
+      <ModuleInfo 
+        number="14" 
+        title="Historial General & Auditoría" 
+        description="Registro auditado de todas las acciones del sistema: creaciones, ediciones, borrados y cambios de stock. Traza qué se hizo, quién lo hizo y cuándo." 
+        onTutorial={() => setShowTutorial(true)} 
+      />
 
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-        <div>
-          <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">14 // AUDITORÍA_SISTEMA</h2>
-          <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">
-            {auditLog.length} entradas cargadas · últimas 1000 acciones
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 border border-[var(--border)] bg-[var(--surface)] px-2">
-            <span className="font-mono text-[9px] opacity-40 uppercase shrink-0">DESDE</span>
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="bg-transparent py-2 text-[10px] font-mono focus:outline-none w-32 cursor-pointer" />
+      {/* Modern Filter Toolbar */}
+      <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-4 shadow-sm flex flex-col gap-3.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Search + Table & Action filter */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="relative w-56">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/40 pointer-events-none" />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="BUSCAR EN REGISTROS..."
+                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] pl-8 pr-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 uppercase placeholder:normal-case"
+              />
+            </div>
+
+            <button
+              onClick={() => setFilterDateChanges(v => !v)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer ${
+                filterDateChanges
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[var(--bg-input)] border border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]'
+              }`}
+            >
+              Cambios de fecha
+            </button>
+
+            {!filterDateChanges && (
+              <>
+                <select 
+                  value={filterTable} 
+                  onChange={e => setFilterTable(e.target.value)}
+                  className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-bold text-[var(--ink)] rounded-xl focus:outline-none focus:border-blue-500 uppercase cursor-pointer"
+                >
+                  <option value="ALL">TODAS LAS TABLAS</option>
+                  {tables.map(t => <option key={t} value={t}>{(TABLE_LABEL[t] ?? t).toUpperCase()}</option>)}
+                </select>
+
+                <select 
+                  value={filterAction} 
+                  onChange={e => setFilterAction(e.target.value as 'ALL' | AuditAction)}
+                  className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-bold text-[var(--ink)] rounded-xl focus:outline-none focus:border-blue-500 uppercase cursor-pointer"
+                >
+                  <option value="ALL">TODAS ACCIONES</option>
+                  <option value="INSERT">CREACIÓN (INSERT)</option>
+                  <option value="UPDATE">EDICIÓN (UPDATE)</option>
+                  <option value="DELETE">ELIMINACIÓN (DELETE)</option>
+                </select>
+              </>
+            )}
+
+            {brands.length > 1 && (
+              <select 
+                value={filterBrand} 
+                onChange={e => setFilterBrand(e.target.value)}
+                className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-bold text-[var(--ink)] rounded-xl focus:outline-none focus:border-blue-500 uppercase cursor-pointer"
+              >
+                <option value="ALL">TODAS LAS MARCAS</option>
+                {brands.map(b => <option key={b} value={b}>{b.replace('_', ' ')}</option>)}
+              </select>
+            )}
           </div>
-          <div className="flex items-center gap-1 border border-[var(--border)] bg-[var(--surface)] px-2">
-            <span className="font-mono text-[9px] opacity-40 uppercase shrink-0">HASTA</span>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="bg-transparent py-2 text-[10px] font-mono focus:outline-none w-32 cursor-pointer" />
+
+          {/* Right action buttons: Refresh & Export */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleRefresh} 
+              disabled={refreshing}
+              className="modern-btn px-3.5 py-2 text-xs flex items-center gap-1.5 uppercase disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+              <span>Recargar</span>
+            </button>
+            <button 
+              onClick={() => exportCSV(filtered)}
+              className="modern-btn-primary px-4 py-2 text-xs flex items-center gap-1.5 uppercase"
+            >
+              <Download size={14} />
+              <span>CSV ({filtered.length})</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Date Filter Bar */}
+        <div className="flex items-center gap-2 pt-2.5 border-t border-[var(--border-soft)] flex-wrap text-xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50 mr-1 flex items-center gap-1">
+            <Calendar size={12} /> Rango:
+          </span>
+          <div className="flex items-center gap-2">
+            <input 
+              type="date" 
+              value={dateFrom} 
+              onChange={e => setDateFrom(e.target.value)}
+              className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-2.5 py-1.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500" 
+            />
+            <span className="text-[var(--ink)]/50">—</span>
+            <input 
+              type="date" 
+              value={dateTo} 
+              onChange={e => setDateTo(e.target.value)}
+              className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-2.5 py-1.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500" 
+            />
           </div>
           {(dateFrom || dateTo) && (
-            <button onClick={() => { setDateFrom(''); setDateTo(''); }}
-              className="font-mono text-[9px] font-bold uppercase opacity-50 hover:opacity-100 border border-[var(--border)]/30 px-2 py-2">
-              ✕ LIMPIAR
+            <button 
+              onClick={() => { setDateFrom(''); setDateTo(''); }}
+              className="modern-btn px-2.5 py-1.5 text-[11px] uppercase ml-1"
+            >
+              Limpiar Fechas
             </button>
           )}
-          <div className="relative">
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="BUSCAR..."
-              className="border border-[var(--border)] bg-[var(--surface)] pl-3 pr-8 py-2 text-[10px] font-mono uppercase placeholder:opacity-40 focus:outline-none focus:shadow-[2px_2px_0_var(--border)] w-36"
-            />
-            <Filter size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 opacity-40" />
-          </div>
-          <button
-            onClick={() => setFilterDateChanges(v => !v)}
-            className={`flex items-center gap-1.5 border px-3 py-2 text-[10px] font-bold font-mono uppercase transition-all shrink-0 ${
-              filterDateChanges
-                ? 'border-blue-700 bg-blue-700 text-white'
-                : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg-card-alt)]'
-            }`}
-          >
-            CAMBIOS DE FECHA
-          </button>
-          {!filterDateChanges && (
-            <>
-              <select value={filterTable} onChange={e => setFilterTable(e.target.value)}
-                className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-                <option value="ALL">TODAS LAS TABLAS</option>
-                {tables.map(t => <option key={t} value={t}>{(TABLE_LABEL[t] ?? t).toUpperCase()}</option>)}
-              </select>
-              <select value={filterAction} onChange={e => setFilterAction(e.target.value as 'ALL' | AuditAction)}
-                className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-                <option value="ALL">TODAS</option>
-                <option value="INSERT">CREÓ</option>
-                <option value="UPDATE">EDITÓ</option>
-                <option value="DELETE">ELIMINÓ</option>
-              </select>
-            </>
-          )}
-          {brands.length > 1 && (
-            <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}
-              className="border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-mono font-bold uppercase focus:outline-none cursor-pointer">
-              <option value="ALL">TODAS MARCAS</option>
-              {brands.map(b => <option key={b} value={b}>{b.replace('_', ' ')}</option>)}
-            </select>
-          )}
-          <button onClick={handleRefresh} disabled={refreshing}
-            className="flex items-center gap-1.5 border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:bg-[var(--bg-card-alt)] disabled:opacity-50 transition-all">
-            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} /> RECARGAR
-          </button>
-          <button onClick={() => exportCSV(filtered)}
-            className="flex items-center gap-2 bg-[var(--ink)] text-[var(--ink-inv)] px-3 py-2 text-[10px] font-bold font-mono uppercase hover:shadow-[2px_2px_0_var(--border)] transition-all shrink-0">
-            <Download size={12} /> CSV ({filtered.length})
-          </button>
         </div>
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center font-mono text-xs opacity-50 py-16 uppercase tracking-widest">Sin registros</div>
+        <div className="p-16 text-center text-xs font-semibold text-[var(--ink)]/50 uppercase tracking-wider bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl shadow-sm">
+          Sin registros de auditoría para los criterios seleccionados
+        </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      {/* Audit Log Cards */}
+      <div className="flex flex-col gap-2.5">
         {filtered.map(ev => {
           const isExp = expanded === ev.id;
           const changes = changedFields(ev);
           return (
-            <div key={ev.id} className="border border-[var(--border)] bg-[var(--bg-card)]">
+            <div key={ev.id} className="border border-[var(--border-soft)] bg-[var(--surface)] rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden">
               <div
-                className="flex items-center justify-between gap-4 p-3 cursor-pointer"
+                className="flex items-center justify-between gap-4 p-4 cursor-pointer"
                 onClick={() => setExpanded(isExp ? null : ev.id)}
               >
-                <div className="flex items-center gap-3 min-w-0 flex-wrap">
-                  <span className={`font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 ${ACTION_COLOR[ev.action]}`}>
+                <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 ${ACTION_COLOR[ev.action]}`}>
                     {ACTION_LABEL[ev.action]}
                   </span>
-                  <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[var(--border)]/30 text-[var(--ink)]/80">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 bg-[var(--bg-input)] border border-[var(--border-soft)] text-[var(--ink)]/80">
                     {(TABLE_LABEL[ev.tableName] ?? ev.tableName).toUpperCase()}
                   </span>
                   {ev.brand && (
-                    <span className="font-mono text-[9px] font-bold border px-2 py-0.5 shrink-0 border-[var(--border)]/20 text-[var(--ink)]/60">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg shrink-0 bg-[var(--bg-input)] border border-[var(--border-soft)] text-[var(--ink)]/60">
                       {ev.brand.replace('_', ' ')}
                     </span>
                   )}
                   <span className="font-mono font-bold text-xs text-[var(--ink)] truncate">{summarize(ev)}</span>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="font-mono text-[10px] font-bold opacity-80">{ev.userName ?? '—'}</span>
-                  <span className="font-mono text-[9px] opacity-40 hidden sm:inline">
+                  <span className="text-xs font-bold text-[var(--ink)]/80">{ev.userName ?? '—'}</span>
+                  <span className="text-xs font-medium text-[var(--ink)]/50 hidden sm:inline">
                     {format(new Date(ev.occurredAt), 'dd MMM HH:mm', { locale: es })}
                   </span>
-                  {isExp ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  {isExp ? <ChevronUp size={15} className="text-[var(--ink)]/40" /> : <ChevronDown size={15} className="text-[var(--ink)]/40" />}
                 </div>
               </div>
 
               {isExp && (
-                <div className="border-t border-[var(--border)]/20 px-4 py-3 flex flex-col gap-2 text-[10px] font-mono bg-[var(--surface-alt)]">
-                  <div className="flex flex-wrap gap-4">
-                    <div><span className="opacity-50 uppercase">Fecha:</span> <span className="font-bold">{format(new Date(ev.occurredAt), 'dd MMM yyyy HH:mm:ss', { locale: es })}</span></div>
-                    <div><span className="opacity-50 uppercase">Usuario:</span> <span className="font-bold">{ev.userName ?? '—'}</span></div>
-                    <div><span className="opacity-50 uppercase">Tabla:</span> <span className="font-bold">{TABLE_LABEL[ev.tableName] ?? ev.tableName}</span></div>
-                    <div><span className="opacity-50 uppercase">Registro:</span> <span className="font-bold">{ev.recordId?.slice(0, 8) ?? '—'}</span></div>
-                    {ev.brand && <div><span className="opacity-50 uppercase">Marca:</span> <span className="font-bold">{ev.brand.replace('_', ' ')}</span></div>}
+                <div className="border-t border-[var(--border-soft)] px-5 py-4 flex flex-col gap-3 bg-[var(--bg-input)]/25 animate-in fade-in duration-150">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[var(--ink)]/40 block">Fecha y Hora</span>
+                      <span className="font-mono font-bold text-[var(--ink)]">{format(new Date(ev.occurredAt), 'dd MMM yyyy HH:mm:ss', { locale: es })}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[var(--ink)]/40 block">Usuario</span>
+                      <span className="font-bold text-[var(--ink)]">{ev.userName ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[var(--ink)]/40 block">Tabla Afectada</span>
+                      <span className="font-semibold text-[var(--ink)]">{TABLE_LABEL[ev.tableName] ?? ev.tableName}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-[var(--ink)]/40 block">ID Registro</span>
+                      <span className="font-mono text-[11px] font-bold text-[var(--ink)] bg-[var(--surface)] px-2 py-0.5 rounded-lg border border-[var(--border-soft)]">{ev.recordId?.slice(0, 8) ?? '—'}</span>
+                    </div>
                   </div>
 
                   {ev.action === 'UPDATE' && changes.length > 0 && (
-                    <div className="border-t border-[var(--border)]/15 pt-2 mt-1">
-                      <div className="font-mono text-[9px] opacity-50 uppercase tracking-widest mb-1">Cambios</div>
-                      <table className="w-full text-[10px]">
-                        <thead>
-                          <tr className="text-left opacity-50 uppercase tracking-wide">
-                            <th className="py-1 pr-3 w-32">Campo</th>
-                            <th className="py-1 pr-3">Antes</th>
-                            <th className="py-1">Después</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {changes.map(c => (
-                            <tr key={c.key} className="border-t border-[var(--border)]/10">
-                              <td className="py-1 pr-3 font-bold opacity-70">{c.key}</td>
-                              <td className="py-1 pr-3 text-red-700/80">{formatValue(c.from)}</td>
-                              <td className="py-1 text-green-700/80">{formatValue(c.to)}</td>
+                    <div className="border-t border-[var(--border-soft)] pt-3 mt-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40 block mb-2">Campos Modificados</span>
+                      <div className="overflow-x-auto rounded-xl border border-[var(--border-soft)] bg-[var(--surface)]">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-[var(--border-soft)] bg-[var(--bg-input)]/50 text-[10px] uppercase text-[var(--ink)]/50">
+                              <th className="py-2 px-3 text-left w-36">Campo</th>
+                              <th className="py-2 px-3 text-left">Valor Anterior</th>
+                              <th className="py-2 px-3 text-left">Nuevo Valor</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {changes.map(c => (
+                              <tr key={c.key} className="border-b border-[var(--border-soft)]/50 last:border-none">
+                                <td className="py-2 px-3 font-mono font-bold text-[var(--ink)]">{c.key}</td>
+                                <td className="py-2 px-3 font-mono text-rose-500">{formatValue(c.from)}</td>
+                                <td className="py-2 px-3 font-mono text-emerald-500 font-bold">{formatValue(c.to)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
 
                   {ev.action === 'INSERT' && ev.newData && (
-                    <details className="border-t border-[var(--border)]/15 pt-2 mt-1">
-                      <summary className="cursor-pointer font-mono text-[9px] opacity-50 uppercase tracking-widest">Datos creados</summary>
-                      <pre className="mt-1 text-[9px] bg-[var(--bg-card)] border border-[var(--border)]/10 p-2 overflow-x-auto">{JSON.stringify(ev.newData, null, 2)}</pre>
+                    <details className="border-t border-[var(--border-soft)] pt-2 mt-1">
+                      <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50 hover:text-[var(--ink)]">Datos Creados (JSON)</summary>
+                      <pre className="mt-2 text-[11px] font-mono bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl p-3 overflow-x-auto">{JSON.stringify(ev.newData, null, 2)}</pre>
                     </details>
                   )}
 
                   {ev.action === 'DELETE' && ev.oldData && (
-                    <details className="border-t border-[var(--border)]/15 pt-2 mt-1">
-                      <summary className="cursor-pointer font-mono text-[9px] opacity-50 uppercase tracking-widest">Datos eliminados</summary>
-                      <pre className="mt-1 text-[9px] bg-[var(--bg-card)] border border-[var(--border)]/10 p-2 overflow-x-auto">{JSON.stringify(ev.oldData, null, 2)}</pre>
+                    <details className="border-t border-[var(--border-soft)] pt-2 mt-1">
+                      <summary className="cursor-pointer text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50 hover:text-[var(--ink)]">Datos Eliminados (JSON)</summary>
+                      <pre className="mt-2 text-[11px] font-mono bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl p-3 overflow-x-auto">{JSON.stringify(ev.oldData, null, 2)}</pre>
                     </details>
                   )}
                 </div>

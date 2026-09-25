@@ -3,6 +3,8 @@ import { X, ScanLine, Package, Plus, Minus, Check, AlertTriangle, Layers, Search
 import { BrowserQRCodeReader } from '@zxing/browser';
 import type { IScannerControls } from '@zxing/browser';
 import { cn } from '../lib/utils';
+import { getColorHex } from '../lib/colors';
+import { sortSizes } from '../lib/sizes';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -42,67 +44,6 @@ interface FamilyQRModalProps {
   onClose: () => void;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Color Palette Helper
-// ─────────────────────────────────────────────────────────────────────────────
-
-const COLOR_MAP: Record<string, string> = {
-  NEGRO: '#141414',
-  BLACK: '#141414',
-  BLANCO: '#f8fafc',
-  WHITE: '#f8fafc',
-  BEIGE: '#d6c6a2',
-  BEGE: '#d6c6a2',
-  BOTELLA: '#14532d',
-  VERDE: '#16a34a',
-  CEMENTO: '#94a3b8',
-  DENIM: '#3b82f6',
-  AZUL: '#2563eb',
-  NAVY: '#1e3a8a',
-  MELANGE: '#cbd5e1',
-  'MELANQE O.': '#94a3b8',
-  PACAY: '#84cc16',
-  'P.ROSA': '#f472b6',
-  PALO_ROSA: '#f472b6',
-  ROSA: '#ec4899',
-  PERLA: '#f1f5f9',
-  VINO: '#881337',
-  GUINDA: '#881337',
-  ROJO: '#dc2626',
-  CAMOTE: '#ea580c',
-  NARANJA: '#f97316',
-  AMARILLO: '#eab308',
-  MOSTAZA: '#ca8a04',
-  GRIS: '#64748b',
-  PLOMO: '#64748b',
-  MARRON: '#78350f',
-  CAFE: '#78350f',
-  CAMEL: '#b45309',
-  LILA: '#c084fc',
-  MORADO: '#7e22ce',
-};
-
-function getColorHex(colorName?: string): string {
-  if (!colorName) return '#94a3b8';
-  const clean = colorName.trim().toUpperCase();
-  for (const key of Object.keys(COLOR_MAP)) {
-    if (clean.includes(key)) return COLOR_MAP[key];
-  }
-  return '#94a3b8';
-}
-
-const SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '2XL', '3XL', 'TALLA UNICA', '(TALLA UNICA)', '10K', '20K'];
-
-function sortSizes(sizes: string[]): string[] {
-  return [...sizes].sort((a, b) => {
-    const ia = SIZE_ORDER.indexOf(a.toUpperCase());
-    const ib = SIZE_ORDER.indexOf(b.toUpperCase());
-    if (ia === -1 && ib === -1) return a.localeCompare(b);
-    if (ia === -1) return 1;
-    if (ib === -1) return -1;
-    return ia - ib;
-  });
-}
 
 function parseModelFromQR(raw: string): string | null {
   try {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
 import { fmtLima } from '../lib/utils';
-import { ChevronRight, ChevronDown, Download, CheckSquare, Square } from 'lucide-react';
+import { ChevronRight, ChevronDown, Download, CheckSquare, Square, Filter, X, FileText } from 'lucide-react';
 import { TutorialModal, HISTORY_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 export const History: React.FC = () => {
@@ -118,6 +118,7 @@ export const History: React.FC = () => {
             ? filteredTransactions.filter(tx => selected.has(tx.id))
             : filteredTransactions;
         const headers = ["ID", "Fecha", "Tipo", "Estado", "SKU", "Producto", "Color", "Talla", "Cantidad", "Origen", "Destino", "Contacto", "Usuario", "Referencia"];
+
         const rows = toExport.map(tx => {
             const product = products.find(p => p.id === tx.productId);
             const fromLoc = locations.find(l => l.id === tx.fromLocationId);
@@ -125,10 +126,10 @@ export const History: React.FC = () => {
             const contact = contacts.find(c => c.id === tx.contactId);
             return [
                 tx.id,
-                fmtLima(tx.date, { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }),
+                fmtLima(tx.date, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
                 tx.type,
                 tx.status,
-                product?.code || '',
+                product?.code || tx.productId,
                 product?.name || '',
                 product?.color || '',
                 product?.size || '',
@@ -136,7 +137,7 @@ export const History: React.FC = () => {
                 fromLoc?.name || '',
                 toLoc?.name || '',
                 contact?.name || '',
-                tx.user || '',
+                tx.user || 'OPERATOR_01',
                 tx.reference,
             ];
         });
@@ -158,45 +159,50 @@ export const History: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col gap-6 relative">
+        <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 pb-12">
             <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={HISTORY_TUTORIAL_STEPS} title="Historial" />
-            <div className="flex items-stretch gap-0">
-                <div className="flex-1">
-                    <ModuleInfo number="10" title="Historial" description="Registro inmutable de todas las transacciones del almacen. Consulta filtrada por tipo, producto o fecha con opcion de imprimir tickets de operacion." />
-                </div>
-                <button
-                    onClick={() => setShowTutorial(true)}
-                    className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-                    title="Ver tutorial"
-                >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-                    </svg>
-                    <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-                </button>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-[var(--border)] pb-3">
-                <div>
-                    <h2 className="font-mono font-black text-xs uppercase tracking-widest">08 // HISTORIAL_OPERACIONES</h2>
-                    <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1">{filteredTransactions.length} registros · historial inmutable de movimientos en la red de almacenes.</p>
-                </div>
+            
+            {/* Modern Hero Module Header */}
+            <ModuleInfo 
+                number="08" 
+                title="Historial de Transacciones" 
+                description="Registro inmutable de todas las operaciones del almacén: recepciones, despachos y traslados. Consulta con filtros avanzados y genera comprobantes de operación." 
+                onTutorial={() => setShowTutorial(true)} 
+            />
+
+            {/* Action & Filter Toolbar */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-3.5 shadow-sm">
                 <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[var(--ink)]/60">
+                        {filteredTransactions.length} {filteredTransactions.length === 1 ? 'operación registrada' : 'operaciones registradas'}
+                    </span>
                     {someSelected && (
-                        <span className="font-mono text-[9px] font-bold opacity-60">{selected.size} SEL.</span>
+                        <span className="text-[10px] font-mono font-bold text-blue-600 bg-blue-500/10 px-2.5 py-0.5 rounded-full">
+                            {selected.size} seleccionadas
+                        </span>
                     )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={exportToCSV}
-                        className="flex items-center gap-2 px-3 py-1.5 font-mono text-[10px] font-bold uppercase transition-all border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] bg-[var(--bg-input)] text-[var(--ink)] hover:bg-black/5"
+                        className="modern-btn px-3.5 py-2 text-xs flex items-center gap-1.5"
                     >
-                        <Download size={14} /> {someSelected ? `CSV (${selected.size})` : 'EXPORTAR CSV'}
+                        <Download size={14} /> 
+                        <span>{someSelected ? `Exportar (${selected.size})` : 'Exportar CSV'}</span>
                     </button>
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`flex items-center gap-2 px-3 py-1.5 font-mono text-[10px] font-bold uppercase transition-all border border-[var(--border)] shadow-[2px_2px_0_var(--border)] active:shadow-none active:translate-y-[2px] active:translate-x-[2px] ${showFilters ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--surface)] text-[var(--ink)] hover:bg-[var(--bg-input)]'}`}
+                        className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer ${
+                            showFilters 
+                                ? 'bg-blue-600 text-white' 
+                                : 'modern-btn'
+                        }`}
                     >
-                        FILTROS
+                        <Filter size={14} />
+                        <span>Filtros</span>
                         {activeFilterCount > 0 && (
-                            <span className="bg-red-600 text-white font-black text-[8px] rounded-full w-4 h-4 flex items-center justify-center leading-none">
+                            <span className="bg-red-500 text-white font-black text-[9px] rounded-full w-4 h-4 flex items-center justify-center leading-none ml-0.5">
                                 {activeFilterCount}
                             </span>
                         )}
@@ -204,42 +210,43 @@ export const History: React.FC = () => {
                 </div>
             </div>
 
+            {/* Collapsible Filter Panel */}
             {showFilters && (
-                <div className="bg-[var(--bg-card)] border border-[var(--border)] p-4 flex flex-col gap-4">
-                    <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
-                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">TIPO OPERACION</label>
+                <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-3xl p-5 shadow-sm flex flex-col gap-4 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Tipo Operación</label>
                             <select 
                                 value={filterType} 
                                 onChange={e => setFilterType(e.target.value)}
-                                className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none"
+                                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 cursor-pointer"
                             >
-                                <option value="ALL">TODAS</option>
-                                <option value="RECEPTION">RECEPCION</option>
-                                <option value="DISPATCH">DESPACHO</option>
-                                <option value="TRANSFER">TRANSLADO</option>
+                                <option value="ALL">TODAS LAS OPERACIONES</option>
+                                <option value="RECEPTION">RECEPCIÓN (ENTRADA)</option>
+                                <option value="DISPATCH">DESPACHO (SALIDA)</option>
+                                <option value="TRANSFER">TRASLADO INTERNO</option>
                             </select>
                         </div>
-                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
-                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">ESTADO</label>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Estado</label>
                             <select 
                                 value={filterStatus} 
                                 onChange={e => setFilterStatus(e.target.value)}
-                                className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none"
+                                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 cursor-pointer"
                             >
-                                <option value="ALL">TODOS</option>
+                                <option value="ALL">TODOS LOS ESTADOS</option>
                                 <option value="COMPLETED">COMPLETADO</option>
                                 <option value="PENDING">PENDIENTE</option>
                                 <option value="CANCELLED">CANCELADO</option>
                                 <option value="PREPARING">PREPARANDO</option>
                             </select>
                         </div>
-                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
-                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">PRODUCTO SKU</label>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Producto SKU</label>
                             <select 
                                 value={filterProduct} 
                                 onChange={e => setFilterProduct(e.target.value)}
-                                className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none"
+                                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 cursor-pointer"
                             >
                                 <option value="ALL">TODOS LOS PRODUCTOS</option>
                                 {products.map(p => (
@@ -247,12 +254,12 @@ export const History: React.FC = () => {
                                 ))}
                             </select>
                         </div>
-                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
-                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">USUARIO</label>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Usuario Operador</label>
                             <select 
                                 value={filterUser} 
                                 onChange={e => setFilterUser(e.target.value)}
-                                className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none"
+                                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 cursor-pointer"
                             >
                                 <option value="ALL">TODOS LOS USUARIOS</option>
                                 {uniqueUsers.map(u => (
@@ -262,13 +269,13 @@ export const History: React.FC = () => {
                         </div>
                     </div>
                     
-                    <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
-                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">CONTACTO</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3.5 items-end">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Contacto</label>
                             <select
                                 value={filterContact}
                                 onChange={e => setFilterContact(e.target.value)}
-                                className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none"
+                                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 cursor-pointer"
                             >
                                 <option value="ALL">TODOS LOS CONTACTOS</option>
                                 {contacts.map(c => (
@@ -276,102 +283,108 @@ export const History: React.FC = () => {
                                 ))}
                             </select>
                         </div>
-                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
-                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">REFERENCIA / GU-A</label>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Referencia / Guía</label>
                             <input
                                 type="text"
                                 value={filterReference}
                                 onChange={e => setFilterReference(e.target.value)}
-                                placeholder="Buscar referencia..."
-                                className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none w-full placeholder:opacity-40 placeholder:normal-case outline-none focus:bg-[var(--bg-input)]"
+                                placeholder="Buscar código o referencia..."
+                                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500 uppercase placeholder:normal-case"
                             />
                         </div>
+
+                        <div className="flex items-center gap-2">
+                            <button 
+                                type="button" 
+                                onClick={() => setFilterHasSignature(v => !v)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                                    filterHasSignature 
+                                        ? 'bg-blue-600 border-transparent text-white shadow-sm' 
+                                        : 'bg-[var(--bg-input)] border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]'
+                                }`}
+                            >
+                                {filterHasSignature ? <CheckSquare size={13} /> : <Square size={13} />} Con Firma
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={() => setFilterHasPhoto(v => !v)}
+                                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                                    filterHasPhoto 
+                                        ? 'bg-blue-600 border-transparent text-white shadow-sm' 
+                                        : 'bg-[var(--bg-input)] border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]'
+                                }`}
+                            >
+                                {filterHasPhoto ? <CheckSquare size={13} /> : <Square size={13} />} Con Foto
+                            </button>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <button 
+                                onClick={resetFilters}
+                                className="modern-btn px-4 py-2 text-xs uppercase"
+                            >
+                                Limpiar Filtros
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="flex gap-3 flex-wrap">
-                        <button type="button" onClick={() => setFilterHasSignature(v => !v)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase border border-[var(--border)] transition-colors ${filterHasSignature ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
-                            {filterHasSignature ? <CheckSquare size={11} /> : <Square size={11} />} CON FIRMA
-                        </button>
-                        <button type="button" onClick={() => setFilterHasPhoto(v => !v)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 font-mono text-[9px] font-bold uppercase border border-[var(--border)] transition-colors ${filterHasPhoto ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'bg-[var(--surface)] hover:bg-[var(--bg-input)]'}`}>
-                            {filterHasPhoto ? <CheckSquare size={11} /> : <Square size={11} />} CON FOTO
-                        </button>
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-4 items-end">
-                        <div className="flex flex-col gap-1.5 flex-1 lg:max-w-xs">
-                            <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">RANGO DE FECHAS</label>
-                            <div className="flex bg-[var(--bg-card-alt)] border border-[var(--border)]">
-                                <button type="button" onClick={() => handleDatePreset('ALL_TIME')} className={`flex-1 px-2 py-2 text-[9px] font-bold uppercase font-mono transition-colors ${dateRangePreset === 'ALL_TIME' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-black/5'}`}>TODO</button>
-                                <div className="w-[1px] bg-[var(--ink)]"></div>
-                                <button type="button" onClick={() => handleDatePreset('LAST_7_DAYS')} className={`flex-1 px-2 py-2 text-[9px] font-bold uppercase font-mono transition-colors ${dateRangePreset === 'LAST_7_DAYS' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-black/5'}`}>-LT 7D</button>
-                                <div className="w-[1px] bg-[var(--ink)]"></div>
-                                <button type="button" onClick={() => handleDatePreset('THIS_MONTH')} className={`flex-1 px-2 py-2 text-[9px] font-bold uppercase font-mono transition-colors ${dateRangePreset === 'THIS_MONTH' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-black/5'}`}>ESTE MES</button>
-                                <div className="w-[1px] bg-[var(--ink)]"></div>
-                                <button type="button" onClick={() => handleDatePreset('CUSTOM')} className={`flex-1 px-2 py-2 text-[9px] font-bold uppercase font-mono transition-colors ${dateRangePreset === 'CUSTOM' ? 'bg-[var(--ink)] text-[var(--ink-inv)]' : 'hover:bg-black/5'}`}>PERSONALIZADO</button>
-                            </div>
+                    <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-[var(--border-soft)] items-center">
+                        <div className="flex items-center gap-1.5 bg-[var(--bg-input)] p-1 rounded-xl border border-[var(--border-soft)] overflow-x-auto w-full sm:w-auto">
+                            <button type="button" onClick={() => handleDatePreset('ALL_TIME')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${dateRangePreset === 'ALL_TIME' ? 'bg-[var(--surface)] text-[var(--ink)] shadow-sm' : 'text-[var(--ink)]/50 hover:text-[var(--ink)]'}`}>TODO</button>
+                            <button type="button" onClick={() => handleDatePreset('LAST_7_DAYS')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${dateRangePreset === 'LAST_7_DAYS' ? 'bg-[var(--surface)] text-[var(--ink)] shadow-sm' : 'text-[var(--ink)]/50 hover:text-[var(--ink)]'}`}>ÚLTIMOS 7 DÍAS</button>
+                            <button type="button" onClick={() => handleDatePreset('THIS_MONTH')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${dateRangePreset === 'THIS_MONTH' ? 'bg-[var(--surface)] text-[var(--ink)] shadow-sm' : 'text-[var(--ink)]/50 hover:text-[var(--ink)]'}`}>ESTE MES</button>
+                            <button type="button" onClick={() => handleDatePreset('CUSTOM')} className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${dateRangePreset === 'CUSTOM' ? 'bg-[var(--surface)] text-[var(--ink)] shadow-sm' : 'text-[var(--ink)]/50 hover:text-[var(--ink)]'}`}>PERSONALIZADO</button>
                         </div>
                         {dateRangePreset === 'CUSTOM' && (
-                            <>
-                                <div className="flex flex-col gap-1.5 flex-1 lg:max-w-[150px]">
-                                    <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">DESDE</label>
-                                    <input 
-                                        type="date" 
-                                        value={dateFrom}
-                                        onChange={e => setDateFrom(e.target.value)}
-                                        className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none w-full"
-                                    />
-                                </div>
-                                <div className="flex flex-col gap-1.5 flex-1 lg:max-w-[150px]">
-                                    <label className="font-mono text-[9px] font-bold opacity-70 tracking-widest uppercase">HASTA</label>
-                                    <input 
-                                        type="date" 
-                                        value={dateTo}
-                                        onChange={e => setDateTo(e.target.value)}
-                                        className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-[10px] font-bold uppercase font-mono rounded-none w-full"
-                                    />
-                                </div>
-                            </>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="date" 
+                                    value={dateFrom}
+                                    onChange={e => setDateFrom(e.target.value)}
+                                    className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-1.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500"
+                                />
+                                <span className="text-xs text-[var(--ink)]/50">—</span>
+                                <input 
+                                    type="date" 
+                                    value={dateTo}
+                                    onChange={e => setDateTo(e.target.value)}
+                                    className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-1.5 text-xs font-semibold rounded-xl focus:outline-none focus:border-blue-500"
+                                />
+                            </div>
                         )}
-                        <div className="flex-1"></div>
-                        <button 
-                            onClick={resetFilters}
-                            className="px-4 py-2 font-mono text-[10px] font-bold uppercase border border-[var(--border)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-colors mb-0.5"
-                        >
-                            LIMPIAR
-                        </button>
                     </div>
                 </div>
             )}
 
-            <div className="data-table-container flex-1 flex flex-col overflow-hidden">
-                <div className="grid grid-cols-[32px_40px_130px_90px_minmax(180px,1fr)_70px_minmax(110px,1fr)_minmax(110px,1fr)_110px_100px] data-header sticky top-0 bg-[var(--bg-sidebar)]">
+            {/* Main Data Table */}
+            <div className="data-table-container bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl overflow-hidden shadow-sm flex flex-col">
+                <div className="grid grid-cols-[36px_40px_130px_100px_minmax(180px,1fr)_75px_minmax(110px,1fr)_minmax(110px,1fr)_110px_100px] data-header sticky top-0 bg-[var(--bg-input)]/70 border-b border-[var(--border-soft)] py-2.5">
                     <div className="flex items-center justify-center cursor-pointer" onClick={toggleSelectAll}>
-                        {allSelected ? <CheckSquare size={13} /> : <Square size={13} className="opacity-50" />}
+                        {allSelected ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} className="text-[var(--ink)]/40" />}
                     </div>
                     <div></div>
-                    <div>FECHA</div>
-                    <div>TIPO</div>
-                    <div>PRODUCTO / MODELO</div>
-                    <div className="text-right">CANT.</div>
-                    <div className="pl-4">ORIGEN</div>
-                    <div>DESTINO</div>
-                    <div>CONTACTO</div>
-                    <div>REFERENCIA</div>
+                    <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">FECHA</div>
+                    <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">TIPO</div>
+                    <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">PRODUCTO / MODELO</div>
+                    <div className="text-right text-[10px] font-bold uppercase text-[var(--ink)]/50 pr-2">CANT.</div>
+                    <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50 pl-2">ORIGEN</div>
+                    <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">DESTINO</div>
+                    <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">CONTACTO</div>
+                    <div className="text-[10px] font-bold uppercase text-[var(--ink)]/50">REFERENCIA</div>
                 </div>
 
-                <div className="flex-1 overflow-auto">
+                <div className="overflow-y-auto">
                     {filteredTransactions.map(tx => {
                         const product = products.find(p => p.id === tx.productId);
                         const fromLoc = locations.find(l => l.id === tx.fromLocationId);
                         const toLoc = locations.find(l => l.id === tx.toLocationId);
                         const isExpanded = expandedRows.has(tx.id);
 
-                        let colorOpt = 'bg-[var(--bg-input)] text-[var(--ink)] border-[var(--border)]';
-                        if (tx.type === 'RECEPTION') colorOpt = 'bg-[#15803d] text-white border-[var(--border)]';
-                        else if (tx.type === 'DISPATCH') colorOpt = 'bg-[var(--ink)] text-[var(--ink-inv)] border-[var(--border)]';
-                        else if (tx.type === 'TRANSFER') colorOpt = 'bg-blue-200 text-blue-600 border-blue-900';
+                        let badgeStyle = 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20';
+                        if (tx.type === 'RECEPTION') badgeStyle = 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
+                        else if (tx.type === 'DISPATCH') badgeStyle = 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20';
+                        else if (tx.type === 'TRANSFER') badgeStyle = 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20';
 
                         const contact = contacts.find(c => c.id === tx.contactId);
                         const modelParts = [product?.color, product?.size].filter(Boolean).join(' · ');
@@ -379,103 +392,97 @@ export const History: React.FC = () => {
                         return (
                             <React.Fragment key={tx.id}>
                                 <div
-                                    className={`grid grid-cols-[32px_40px_130px_90px_minmax(180px,1fr)_70px_minmax(110px,1fr)_minmax(110px,1fr)_110px_100px] data-row items-center cursor-pointer select-none ${isExpanded ? 'bg-[var(--bg-card-alt)] border-b-transparent' : ''} ${selected.has(tx.id) ? '!bg-blue-500/10' : ''}`}
+                                    className={`grid grid-cols-[36px_40px_130px_100px_minmax(180px,1fr)_75px_minmax(110px,1fr)_minmax(110px,1fr)_110px_100px] items-center py-2.5 px-1 border-b border-[var(--border-soft)]/50 hover:bg-[var(--bg-input)]/40 transition-colors cursor-pointer select-none text-xs ${isExpanded ? 'bg-[var(--bg-input)]/30 border-b-transparent' : ''} ${selected.has(tx.id) ? '!bg-blue-500/10' : ''}`}
                                     onClick={() => toggleExpand(tx.id)}
                                 >
                                     <div className="flex justify-center" onClick={e => { e.stopPropagation(); toggleSelect(tx.id); }}>
-                                        {selected.has(tx.id) ? <CheckSquare size={13} className="text-blue-600" /> : <Square size={13} className="opacity-30" />}
+                                        {selected.has(tx.id) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} className="text-[var(--ink)]/30" />}
                                     </div>
-                                    <div className="flex justify-center opacity-50">
-                                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                    <div className="flex justify-center text-[var(--ink)]/40">
+                                        {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                                     </div>
-                                    <div className="font-mono text-[10px] opacity-70 font-bold">
+                                    <div className="font-mono text-[11px] text-[var(--ink)]/70 font-semibold">
                                         {fmtLima(tx.date, { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}
                                     </div>
-                                    <div className={`font-mono text-[9px] uppercase font-bold tracking-wider border py-0.5 px-2 w-fit ${colorOpt}`}>
-                                        {tx.type === 'RECEPTION' ? 'RECEP.' : tx.type === 'DISPATCH' ? 'DESP.' : 'TRANSF.'}
+                                    <div>
+                                        <span className={`text-[9px] uppercase font-bold tracking-wider py-0.5 px-2 rounded-md ${badgeStyle}`}>
+                                            {tx.type === 'RECEPTION' ? 'RECEP.' : tx.type === 'DISPATCH' ? 'DESP.' : 'TRANSF.'}
+                                        </span>
                                     </div>
-                                    <div className="flex flex-col gap-0.5 min-w-0">
-                                        <span className="text-[10px] font-bold uppercase truncate">{product?.name || '---'}</span>
-                                        <span className="font-mono text-[9px] opacity-60 truncate">
+                                    <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                                        <span className="font-bold text-[var(--ink)] truncate">{product?.name || '—'}</span>
+                                        <span className="font-mono text-[10px] text-[var(--ink)]/50 truncate">
                                             {product?.code}{modelParts ? ` · ${modelParts}` : ''}
                                         </span>
                                     </div>
-                                    <div className={`font-mono text-right text-sm font-black ${tx.type === 'DISPATCH' ? 'text-red-600' : tx.type === 'RECEPTION' ? 'text-green-700' : 'text-blue-600'}`}>
+                                    <div className={`font-mono text-right text-sm font-black pr-2 ${tx.type === 'DISPATCH' ? 'text-violet-600 dark:text-violet-400' : tx.type === 'RECEPTION' ? 'text-emerald-500' : 'text-amber-500'}`}>
                                         {tx.type === 'DISPATCH' ? '-' : tx.type === 'RECEPTION' ? '+' : ''}{tx.quantity}
                                     </div>
-                                    <div className="pl-4 font-mono text-[10px] opacity-80 uppercase truncate">
-                                        {fromLoc?.name || '---'}
+                                    <div className="font-medium text-[var(--ink)]/70 truncate pl-2">
+                                        {fromLoc?.name || '—'}
                                     </div>
-                                    <div className="font-mono text-[10px] opacity-80 uppercase truncate">
-                                        {toLoc?.name || '---'}
+                                    <div className="font-medium text-[var(--ink)]/70 truncate">
+                                        {toLoc?.name || '—'}
                                     </div>
-                                    <div className="font-mono text-[10px] uppercase truncate opacity-70">
+                                    <div className="font-medium text-[var(--ink)]/70 truncate">
                                         {contact?.name || '—'}
                                     </div>
-                                    <div className="text-[10px] font-bold uppercase truncate opacity-70">
+                                    <div className="font-mono font-semibold text-[var(--ink)]/70 truncate">
                                         {tx.reference}
                                     </div>
                                 </div>
                                 {isExpanded && (
-                                    <div className="bg-[var(--surface-alt)] border-b border-[var(--border)] p-4 pl-[40px]">
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <div className="bg-[var(--bg-input)]/25 border-b border-[var(--border-soft)] p-5 pl-[48px] animate-in fade-in duration-150">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">USUARIO_OPERADOR</span>
-                                                <span className="text-xs font-bold font-mono">{tx.user || 'OPERATOR_01'}</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">Operador</span>
+                                                <span className="text-xs font-bold font-mono text-[var(--ink)]">{tx.user || 'OPERATOR_01'}</span>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">UBICACION_ORIGEN</span>
-                                                <span className="text-xs font-bold font-mono">{fromLoc ? fromLoc.name : (tx.fromLocationId ? 'N/A' : '---')}</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">Ubicación Origen</span>
+                                                <span className="text-xs font-semibold text-[var(--ink)]">{fromLoc ? fromLoc.name : (tx.fromLocationId ? 'N/A' : '—')}</span>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">UBICACION_DESTINO</span>
-                                                <span className="text-xs font-bold font-mono">{toLoc ? toLoc.name : (tx.toLocationId ? 'N/A' : '---')}</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">Ubicación Destino</span>
+                                                <span className="text-xs font-semibold text-[var(--ink)]">{toLoc ? toLoc.name : (tx.toLocationId ? 'N/A' : '—')}</span>
                                             </div>
                                             <div className="flex flex-col gap-1">
-                                                <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">ESTADO_OPERACION</span>
-                                                <span className={`text-xs font-bold font-mono ${
-                                                    tx.status === 'COMPLETED' ? 'text-[#15803d]' :
-                                                    tx.status === 'PREPARING' ? 'text-blue-600' :
-                                                    tx.status === 'CANCELLED' ? 'text-red-600' :
-                                                    'text-yellow-600'
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">Estado de Operación</span>
+                                                <span className={`text-xs font-bold ${
+                                                    tx.status === 'COMPLETED' ? 'text-emerald-500' :
+                                                    tx.status === 'PREPARING' ? 'text-blue-500' :
+                                                    tx.status === 'CANCELLED' ? 'text-red-500' :
+                                                    'text-amber-500'
                                                 }`}>
                                                     {tx.status}
                                                 </span>
                                             </div>
-                                            <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-1">
-                                                <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">ID_TRANSACCION</span>
-                                                <span className="text-[10px] font-bold font-mono bg-black/5 p-1 px-2 border border-black/10 w-fit truncate max-w-full" title={tx.id}>{tx.id}</span>
+                                            <div className="flex flex-col gap-1">
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">ID Transacción</span>
+                                                <span className="text-[11px] font-mono font-bold text-[var(--ink)] bg-[var(--surface)] px-2 py-1 rounded-lg border border-[var(--border-soft)] w-fit truncate max-w-full" title={tx.id}>
+                                                    {tx.id}
+                                                </span>
                                             </div>
                                             {tx.contactId && (
-                                                <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-1">
-                                                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">
-                                                        {tx.type === 'RECEPTION' ? 'PROVEEDOR' : 'CLIENTE'}
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">
+                                                        {tx.type === 'RECEPTION' ? 'Proveedor' : 'Cliente / Receptor'}
                                                     </span>
-                                                    <span className="text-xs font-bold font-mono truncate">
-                                                        {contacts.find(c => c.id === tx.contactId)?.name || '---'}
+                                                    <span className="text-xs font-bold text-[var(--ink)] truncate">
+                                                        {contacts.find(c => c.id === tx.contactId)?.name || '—'}
                                                     </span>
                                                 </div>
                                             )}
                                             {tx.serialNumber && (
-                                                <div className="flex flex-col gap-1 md:col-span-2 lg:col-span-1">
-                                                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">LOTE/SERIE</span>
-                                                    <span className="text-[10px] font-bold font-mono bg-black/5 p-1 px-2 border border-black/10 w-fit truncate max-w-full">{tx.serialNumber}</span>
+                                                <div className="flex flex-col gap-1">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">Lote / Serie</span>
+                                                    <span className="text-xs font-mono font-bold text-[var(--ink)]">{tx.serialNumber}</span>
                                                 </div>
                                             )}
-                                            {tx.signature && (
-                                                <div className="flex flex-col gap-1 md:col-span-3">
-                                                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">FIRMA DIGITAL</span>
-                                                    <div className="border border-[var(--border)] bg-[var(--bg-input)] w-48 h-20 p-1 flex items-center justify-center overflow-hidden">
-                                                        <img src={tx.signature} alt="Firma de la operacion" className="max-w-full max-h-full object-contain" />
-                                                    </div>
-                                                </div>
-                                            )}
-                                            <div className="flex flex-col gap-1 items-end justify-start md:col-span-3 lg:col-span-1">
+                                            <div className="flex items-center justify-start md:justify-end">
                                                 <button 
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        // Simple PDF generation logic using print
-                                                        const originalContents = document.body.innerHTML;
                                                         const ticktHTML = `
                                                             <div style="font-family: monospace; font-size: 12px; width: 300px; padding: 20px; border: 1px solid black; margin: auto;">
                                                                 <h2 style="text-align: center; margin-bottom: 20px;">TICKET DE OPERACION</h2>
@@ -483,7 +490,7 @@ export const History: React.FC = () => {
                                                                 <p><strong>TIPO:</strong> ${tx.type}</p>
                                                                 <p><strong>FECHA:</strong> ${fmtLima(tx.date, { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' })}</p>
                                                                 <hr style="border:1px dashed black; margin: 10px 0;" />
-                                                                <p><strong>MERCADER-A:</strong> ${product?.name || '---'}</p>
+                                                                <p><strong>MERCADERIA:</strong> ${product?.name || '---'}</p>
                                                                 <p><strong>CODIGO:</strong> ${product?.code || '---'}</p>
                                                                 <p><strong>CANTIDAD:</strong> ${tx.type === 'DISPATCH' ? '-' : '+'}${tx.quantity}</p>
                                                                 <hr style="border:1px dashed black; margin: 10px 0;" />
@@ -505,17 +512,17 @@ export const History: React.FC = () => {
                                                             printWindow.document.close();
                                                         }
                                                     }}
-                                                    className="bg-[var(--ink)] text-white px-4 py-2 font-mono text-[9px] font-bold tracking-widest uppercase hover:bg-black transition-colors flex items-center gap-2"
+                                                    className="modern-btn-primary px-3.5 py-2 text-xs flex items-center gap-1.5 uppercase"
                                                 >
-                                                    <span className="hidden sm:inline">GENERAR TICKET EN PDF</span>
-                                                    <span className="sm:hidden">TICKET PDF</span>
+                                                    <FileText size={14} />
+                                                    <span>Ticket PDF</span>
                                                 </button>
                                             </div>
                                             {tx.signature && (
-                                                <div className="flex flex-col gap-1 md:col-span-3 lg:col-span-3 mt-4">
-                                                    <span className="text-[9px] font-bold uppercase tracking-widest opacity-60 font-mono">FIRMA DIGITAL</span>
-                                                    <div className="bg-[var(--bg-input)] border border-[var(--border)] shadow-[2px_2px_0_var(--border)] p-2 inline-block w-fit">
-                                                        <img src={tx.signature} alt="Firma de recepcion" className="h-20 object-contain" />
+                                                <div className="flex flex-col gap-1.5 col-span-full pt-2">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40">Firma Digital Registrada</span>
+                                                    <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl p-2.5 inline-block w-fit shadow-sm">
+                                                        <img src={tx.signature} alt="Firma de la operación" className="h-16 object-contain" />
                                                     </div>
                                                 </div>
                                             )}
@@ -523,10 +530,12 @@ export const History: React.FC = () => {
                                     </div>
                                 )}
                             </React.Fragment>
-                        )
+                        );
                     })}
                     {filteredTransactions.length === 0 && (
-                        <div className="p-12 text-center font-mono text-sm opacity-50 font-bold uppercase">NO EXISTE REGISTRO CON LOS FILTROS ACTUALES</div>
+                        <div className="p-16 text-center text-xs font-semibold text-[var(--ink)]/50 uppercase tracking-wider">
+                            No existen registros con los filtros seleccionados
+                        </div>
                     )}
                 </div>
             </div>

@@ -35,7 +35,7 @@ interface AppContextType {
   updateReservation: (r: Reservation) => Promise<void>;
   deleteReservation: (id: string) => Promise<void>;
   addTransaction: (tx: Omit<Transaction, 'id' | 'date' | 'status'> & { forceNewEntry?: boolean }) => Promise<void>;
-  addProduct: (product: Omit<Product, 'id'>) => void;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
   addLocation: (location: Omit<Location, 'id'>) => void;
@@ -441,18 +441,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (posR.data) setPurchaseOrders(posR.data.map(dbToPO));
   };
 
-  const addProduct = (p: Omit<Product, 'id'>) => {
+  const addProduct = async (p: Omit<Product, 'id'>): Promise<void> => {
     const tempId = crypto.randomUUID();
     setProducts(prev => [...prev, { ...p, id: tempId }]);
-    supabase.from('products').insert([{ id: tempId, brand: activeBrand, code: p.code, name: p.name, color: p.color || null, size: p.size || null, category: p.category, low_stock_threshold: p.lowStockThreshold || null, cost_price: p.costPrice || null, sell_price: p.sellPrice || null }]).select().single()
-      .then(({ data, error }) => {
-        if (error) {
-          console.error('addProduct failed:', error);
-          setProducts(prev => prev.filter(x => x.id !== tempId));
-          return;
-        }
-        if (data) setProducts(prev => prev.map(x => x.id === tempId ? dbToProduct(data) : x));
-      });
+    const { data, error } = await supabase
+      .from('products')
+      .insert([{
+        id: tempId,
+        brand: activeBrand,
+        code: p.code,
+        name: p.name,
+        color: p.color || null,
+        size: p.size || null,
+        category: p.category || 'General',
+        low_stock_threshold: p.lowStockThreshold || null,
+        cost_price: p.costPrice || null,
+        sell_price: p.sellPrice || null,
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('addProduct failed:', error);
+      setProducts(prev => prev.filter(x => x.id !== tempId));
+      throw new Error(error.message);
+    }
+    if (data) {
+      setProducts(prev => prev.map(x => x.id === tempId ? dbToProduct(data) : x));
+    }
   };
 
   const updateProduct = (updated: Product) => {

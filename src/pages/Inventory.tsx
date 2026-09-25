@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAppContext } from '../store/AppContext';
 import { ModuleInfo } from '../components/ModuleInfo';
-import { Search, Plus, X, ChevronDown, ChevronRight, Edit2, AlertTriangle, Trash2, Download, Upload, QrCode, ArrowDownLeft, ArrowUpRight, Package } from 'lucide-react';
+import { Search, Plus, X, Edit2, AlertTriangle, Trash2, Download, Upload, QrCode, ArrowDownLeft, ArrowUpRight, Package, Layers, Sparkles } from 'lucide-react';
 import { Product } from '../types';
 import Papa from 'papaparse';
 import { canEdit } from '../lib/permissions';
@@ -9,13 +9,13 @@ import { QRModal } from '../components/QRModal';
 import { TutorialModal, INVENTORY_TUTORIAL_STEPS } from '../components/TutorialModal';
 
 export const Inventory: React.FC = () => {
-  const { products, stockLevels, locations, transactions, addProduct, updateProduct, deleteProduct, activeBrand, setActiveBrand, currentUser } = useAppContext();
+  const { products, stockLevels, transactions, addProduct, updateProduct, deleteProduct, activeBrand, setActiveBrand, currentUser } = useAppContext();
   const [showTutorial, setShowTutorial] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
-  const [filterColor, setFilterColor] = useState('');
-  const [filterSize, setFilterSize] = useState('');
-  const [filterStatus, setFilterStatus] = useState(() => {
+  const [filterColor] = useState('');
+  const [filterSize] = useState('');
+  const [filterStatus] = useState(() => {
     return window.sessionStorage.getItem('inventoryFilter') === 'LOW_STOCK' ? 'LOW_STOCK' : 'ALL';
   });
 
@@ -24,9 +24,6 @@ export const Inventory: React.FC = () => {
     window.sessionStorage.removeItem('inventoryFilter');
   }, []);
 
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
-  const [expandedColors, setExpandedColors] = useState<Set<string>>(new Set());
   const [filterFabric, setFilterFabric] = useState<string | null>(null);
   const FABRIC_TYPES = ['JERSEY', 'WAFFLE', 'CATANIA', 'FRENCH TERRY', 'BRATZ', 'PIQUE'];
   
@@ -64,7 +61,7 @@ export const Inventory: React.FC = () => {
     'CAMISERO PIQUE MANGA LARGA': 'PIQUE',
     'CUELLO CHINO': 'PIQUE'
   };
-  const [filterLocation, setFilterLocation] = useState('');
+  const [filterLocation] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedProductForModal, setSelectedProductForModal] = useState<string | null>(null);
   const [modalColorFilter, setModalColorFilter] = useState<string | null>(null);
@@ -76,8 +73,6 @@ export const Inventory: React.FC = () => {
     name: '', codePrefix: '', category: '',
     costPrice: '', sellPrice: '', lowStockThreshold: ''
   });
-  const [variantBaseSearch, setVariantBaseSearch] = useState('');
-  const [variantBaseOpen, setVariantBaseOpen] = useState(false);
   const PRESET_COLORS = ['Negro','Blanco','Azul','Rojo','Verde','Gris','Beige','Cemento','Vino','Marron','Plomo','Pacay','Menta','Camote','Denim','Topo','P.Rosa','Perla','Botella','Melanqe O.'];
   const PRESET_SIZES = ['XS','S','M','L','XL','XXL','XXXL','TALLA UNICA'];
   const [variantColors, setVariantColors] = useState<string[]>([]);
@@ -97,15 +92,23 @@ export const Inventory: React.FC = () => {
     return Array.from(seen.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
 
-  // Next correlative index for a given code prefix
-  const nextIndexForPrefix = (prefix: string): number => {
-    const upper = prefix.toUpperCase();
-    const existing = products
+  // Next correlative index and padding for a given code prefix
+  const getNextCodeInfo = (prefix: string) => {
+    const upper = prefix.toUpperCase().trim();
+    const matching = products
       .map(p => p.code)
-      .filter(c => c.startsWith(upper + '-'))
-      .map(c => parseInt(c.slice(upper.length + 1), 10))
-      .filter(n => !isNaN(n));
-    return existing.length > 0 ? Math.max(...existing) + 1 : 0;
+      .filter(c => c.toUpperCase().startsWith(upper + '-'));
+
+    let padLength = 3;
+    const nums: number[] = [];
+    for (const code of matching) {
+      const part = code.slice(upper.length + 1);
+      if (part.length > padLength) padLength = part.length;
+      const parsed = parseInt(part, 10);
+      if (!isNaN(parsed)) nums.push(parsed);
+    }
+    const nextIdx = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+    return { nextIdx, padLength: Math.max(padLength, 3) };
   };
 
   const selectVariantBase = (p: Product) => {
@@ -118,39 +121,72 @@ export const Inventory: React.FC = () => {
       sellPrice: p.sellPrice != null ? String(p.sellPrice) : '',
       lowStockThreshold: p.lowStockThreshold != null ? String(p.lowStockThreshold) : '',
     });
-    setVariantBaseSearch(p.name);
-    setVariantBaseOpen(false);
   };
 
-  const handleAddVariants = () => {
+  const handleVariantNameChange = (nameVal: string) => {
+    const upper = nameVal.trim().toUpperCase();
+    const existing = products.find(p => p.name.trim().toUpperCase() === upper);
+    if (existing) {
+      const prefix = existing.code.includes('-') ? existing.code.split('-')[0] : existing.code;
+      setVariantForm({
+        name: nameVal,
+        codePrefix: prefix,
+        category: existing.category || '',
+        costPrice: existing.costPrice != null ? String(existing.costPrice) : '',
+        sellPrice: existing.sellPrice != null ? String(existing.sellPrice) : '',
+        lowStockThreshold: existing.lowStockThreshold != null ? String(existing.lowStockThreshold) : '',
+      });
+    } else {
+      setVariantForm(prev => ({
+        ...prev,
+        name: nameVal,
+        codePrefix: prev.codePrefix || (activeBrand === 'BRAVOS' ? 'BRV' : activeBrand === 'BOX_PRIME' ? 'BP' : '')
+      }));
+    }
+  };
+
+  const [isSubmittingVariants, setIsSubmittingVariants] = useState(false);
+  const [variantError, setVariantError] = useState<string | null>(null);
+
+  const handleAddVariants = async () => {
     if (!variantForm.name || !variantForm.codePrefix) return;
     const colors = variantColors.length ? variantColors : [''];
     const sizes = variantSizes.length ? variantSizes : [''];
-    const startIdx = nextIndexForPrefix(variantForm.codePrefix);
-    let idx = 0;
-    for (const color of colors) {
-      for (const size of sizes) {
-        const suffix = String(startIdx + idx).padStart(3, '0');
-        addProduct({
-          code: `${variantForm.codePrefix.toUpperCase()}-${suffix}`,
-          name: variantForm.name.toUpperCase(),
-          color: color || undefined,
-          size: size || undefined,
-          category: variantForm.category,
-          costPrice: variantForm.costPrice ? Number(variantForm.costPrice) : undefined,
-          sellPrice: variantForm.sellPrice ? Number(variantForm.sellPrice) : undefined,
-          lowStockThreshold: variantForm.lowStockThreshold ? Number(variantForm.lowStockThreshold) : undefined,
-        });
-        idx++;
+    const { nextIdx: startIdx, padLength } = getNextCodeInfo(variantForm.codePrefix);
+    
+    setIsSubmittingVariants(true);
+    setVariantError(null);
+    try {
+      let idx = 0;
+      for (const color of colors) {
+        for (const size of sizes) {
+          const suffix = String(startIdx + idx).padStart(padLength, '0');
+          await addProduct({
+            code: `${variantForm.codePrefix.toUpperCase()}-${suffix}`,
+            name: variantForm.name.toUpperCase().trim(),
+            color: color ? color.trim() : undefined,
+            size: size ? size.trim() : undefined,
+            category: variantForm.category || 'General',
+            costPrice: variantForm.costPrice ? Number(variantForm.costPrice) : undefined,
+            sellPrice: variantForm.sellPrice ? Number(variantForm.sellPrice) : undefined,
+            lowStockThreshold: variantForm.lowStockThreshold ? Number(variantForm.lowStockThreshold) : undefined,
+          });
+          idx++;
+        }
       }
+      setShowVariantsModal(false);
+      setVariantForm({ name: '', codePrefix: '', category: '', costPrice: '', sellPrice: '', lowStockThreshold: '' });
+      setVariantColors([]);
+      setVariantSizes([]);
+      alert(`Se crearon exitosamente ${idx} variante(s) para "${variantForm.name.toUpperCase()}".`);
+    } catch (err: unknown) {
+      console.error('Error creating variants:', err);
+      const msg = err instanceof Error ? err.message : 'Error al registrar variantes.';
+      setVariantError(msg);
+      alert('No se pudieron crear las variantes: ' + msg);
+    } finally {
+      setIsSubmittingVariants(false);
     }
-    setShowVariantsModal(false);
-    setVariantForm({ name: '', codePrefix: '', category: '', costPrice: '', sellPrice: '', lowStockThreshold: '' });
-    setVariantBaseSearch('');
-    setVariantColors([]);
-    setVariantSizes([]);
-    setVariantColors([]);
-    setVariantSizes([]);
   };
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -170,10 +206,6 @@ export const Inventory: React.FC = () => {
   const totalDespachado = useMemo(() =>
     transactions.filter(t => t.type === 'DISPATCH' && t.status !== 'CANCELLED').reduce((s, t) => s + t.quantity, 0),
   [transactions]);
-
-  const uniqueColors = Array.from(new Set(products.map(p => p.color).filter(Boolean))) as string[];
-  const uniqueSizes = Array.from(new Set(products.map(p => p.size).filter(Boolean))) as string[];
-  
 
   // Calculate aggregated stock per product
   const inventoryData = products.map(p => {
@@ -200,30 +232,6 @@ export const Inventory: React.FC = () => {
     return searchMatch && colorMatch && sizeMatch && categoryMatch && statusMatch && locationMatch;
   });
 
-  const toggleExpand = (id: string) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const toggleProduct = (name: string) => {
-    setExpandedProducts(prev => {
-      const next = new Set(prev);
-      next.has(name) ? next.delete(name) : next.add(name);
-      return next;
-    });
-  };
-
-  const toggleColor = (key: string) => {
-    setExpandedColors(prev => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-  };
-
   const groupedByProduct = inventoryData.reduce<Record<string, typeof inventoryData>>((acc, p) => {
     if (!acc[p.name]) acc[p.name] = [];
     acc[p.name].push(p);
@@ -232,28 +240,26 @@ export const Inventory: React.FC = () => {
 
   const sortedProductNames = Object.keys(groupedByProduct).sort();
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newProduct.code && newProduct.name) {
-      addProduct({
-        code: newProduct.code,
-        name: newProduct.name,
-        color: newProduct.color,
-        size: newProduct.size,
-        category: newProduct.category,
-        lowStockThreshold: newProduct.lowStockThreshold ? Number(newProduct.lowStockThreshold) : undefined,
-        costPrice: newProduct.costPrice ? Number(newProduct.costPrice) : undefined,
-        sellPrice: newProduct.sellPrice ? Number(newProduct.sellPrice) : undefined
-      });
-      setShowAddModal(false);
-      setNewProduct({ code: '', name: '', color: '', size: '', category: '', lowStockThreshold: '', costPrice: '', sellPrice: '' });
+      try {
+        await addProduct({
+          code: newProduct.code.trim().toUpperCase(),
+          name: newProduct.name.trim().toUpperCase(),
+          color: newProduct.color ? newProduct.color.trim() : undefined,
+          size: newProduct.size ? newProduct.size.trim() : undefined,
+          category: newProduct.category || 'General',
+          lowStockThreshold: newProduct.lowStockThreshold ? Number(newProduct.lowStockThreshold) : undefined,
+          costPrice: newProduct.costPrice ? Number(newProduct.costPrice) : undefined,
+          sellPrice: newProduct.sellPrice ? Number(newProduct.sellPrice) : undefined
+        });
+        setShowAddModal(false);
+        setNewProduct({ code: '', name: '', color: '', size: '', category: '', lowStockThreshold: '', costPrice: '', sellPrice: '' });
+      } catch (err: unknown) {
+        alert('No se pudo registrar el SKU: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      }
     }
-  };
-
-  const openEditModal = (product: Product, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditingProduct(product);
-    setShowEditModal(true);
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -292,7 +298,7 @@ export const Inventory: React.FC = () => {
       ...rows.map(r => r.map(field => `"${String(field).replace(/"/g, '""')}"`).join(","))
     ].join("\n");
     
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF is BOM for Excel UTF-8 display
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
@@ -332,43 +338,21 @@ export const Inventory: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6 h-full relative">
+    <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto pb-10">
       <TutorialModal open={showTutorial} onClose={() => setShowTutorial(false)} steps={INVENTORY_TUTORIAL_STEPS} title="Inventario" />
-      <div className="flex items-stretch gap-0">
-        <div className="flex-1">
-          <ModuleInfo number="05" title="Inventario" description="Directorio completo de productos organizados por nombre, color y talla. Registra, edita y elimina SKUs, consulta ubicaciones y exporta el inventario." />
-        </div>
-        <button
-          onClick={() => setShowTutorial(true)}
-          className="flex items-center gap-1.5 px-4 border border-l-0 border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] transition-all duration-150 shrink-0"
-          title="Ver tutorial"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-          </svg>
-          <span className="font-mono text-[9px] font-bold uppercase tracking-widest hidden sm:block">Tutorial</span>
-        </button>
-      </div>
+      
+      {/* Hero Module Header */}
+      <ModuleInfo 
+        number="05" 
+        title="Inventario" 
+        description="Directorio consolidado de productos por marca, color y talla. Registra nuevos SKUs, genera variantes en lote, consulta existencias por almacén y exporta tus catálogos."
+        onTutorial={() => setShowTutorial(true)}
+      />
+
       <datalist id="product-names">
-        <option value="CAMISA WAFFLE" />
-        <option value="CAMISERO JERSEY" />
-        <option value="CAMISERO PIKE" />
-        <option value="WAFFLE" />
-        <option value="WAFFLE CAMISERO" />
-        <option value="WAFFLE MANGA LARGA" />
-        <option value="CUELLO CHINO" />
-        <option value="CUELLO CHINO WAFFLE" />
-        <option value="JERSEY MANGA LARGA" />
-        <option value="BABY TY ESCOTE" />
-        <option value="BABY TY" />
-        <option value="BABY TY ESCOTADO MANGA" />
-        <option value="BABY TY MANGA" />
-        <option value="TOP RIB" />
-        <option value="TOP RIB MANGA" />
-        <option value="CLASICO" />
-        <option value="OVERSIZE" />
-        <option value="MEDIAS LARGAS" />
-        <option value="MEDIAS CORTAS" />
+        {productFamilies.map(p => (
+          <option key={p.id} value={p.name} />
+        ))}
       </datalist>
 
       <datalist id="category-list">
@@ -378,247 +362,296 @@ export const Inventory: React.FC = () => {
         <option value="Pantalones" />
       </datalist>
 
-      <datalist id="variant-options">
-        <option value="Azul / S" />
-        <option value="Beige / M" />
-        <option value="Botella / L" />
-        <option value="Negro / XL" />
-        <option value="Cemento / S" />
-        <option value="Denim / M" />
-        <option value="Melanqe O. / L" />
-        <option value="Pacay / XL" />
-        <option value="P.Rosa / S" />
-        <option value="Perla / M" />
-        <option value="Vino / L" />
-        <option value="Menta / UNI" />
-        <option value="Camote / XL" />
-        <option value="Topo / S" />
-        <option value="Plomo / UNI" />
-        <option value="Marron / M" />
-      </datalist>
-
-      {/* -- Tarjetas de resumen -- */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)]/30 p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
-              <ArrowDownLeft size={14} className="text-green-600 dark:text-green-400" />
+      {/* Summary KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] p-4.5 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+              <ArrowDownLeft size={20} className="text-emerald-500" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/60">Recepcionado</span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Recepcionado Total</p>
+              <h4 className="text-2xl font-black text-[var(--ink)] tracking-tight leading-none mt-1">
+                {totalRecepcionado.toLocaleString()}
+              </h4>
+            </div>
           </div>
-          <div>
-            <span className="font-sans font-bold text-xl text-[var(--ink)] leading-none tracking-tight">{totalRecepcionado.toLocaleString()}</span>
-          </div>
+          <span className="text-[10px] font-mono font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-lg">Entradas</span>
         </div>
 
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)]/30 p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group">
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-            <Package size={60} />
-          </div>
-          <div className="flex items-center gap-2 relative z-10">
-            <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-              <Package size={14} className="text-blue-600 dark:text-blue-400" />
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] p-4.5 flex items-center justify-between shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-blue-500/5 to-transparent pointer-events-none" />
+          <div className="flex items-center gap-3.5 relative z-10">
+            <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+              <Package size={20} className="text-blue-500 group-hover:scale-110 transition-transform" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/60">Disponible</span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Stock Disponible</p>
+              <h4 className="text-2xl font-black text-blue-600 dark:text-blue-400 tracking-tight leading-none mt-1">
+                {totalDisponible.toLocaleString()}
+              </h4>
+            </div>
           </div>
-          <div className="relative z-10">
-            <span className="font-sans font-bold text-2xl text-[var(--ink)] leading-none tracking-tight">{totalDisponible.toLocaleString()}</span>
-          </div>
+          <span className="text-[10px] font-mono font-bold text-blue-500 bg-blue-500/10 px-2.5 py-1 rounded-lg relative z-10">Activo</span>
         </div>
 
-        <div className="bg-[var(--surface)] rounded-xl border border-[var(--border)]/30 p-3 flex flex-col gap-2 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center shrink-0">
-              <ArrowUpRight size={14} className="text-red-600 dark:text-red-400" />
+        <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)] p-4.5 flex items-center justify-between shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center shrink-0">
+              <ArrowUpRight size={20} className="text-violet-500" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/60">Despachado</span>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/50">Despachado Total</p>
+              <h4 className="text-2xl font-black text-[var(--ink)] tracking-tight leading-none mt-1">
+                {totalDespachado.toLocaleString()}
+              </h4>
+            </div>
           </div>
-          <div>
-            <span className="font-sans font-bold text-xl text-[var(--ink)] leading-none tracking-tight">{totalDespachado.toLocaleString()}</span>
-          </div>
+          <span className="text-[10px] font-mono font-bold text-violet-500 bg-violet-500/10 px-2 py-1 rounded-lg">Salidas</span>
         </div>
       </div>
 
-      <div className="flex flex-col gap-3 mb-2">
-        {/* Title row + primary actions */}
-        <div className="flex justify-between items-end">
-          <div>
-            <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">01 // Directorio_Inventario</h2>
-            <p className="font-mono text-[10px] opacity-70 uppercase tracking-wide mt-1 hidden sm:block">Estado consolidado de SKU y ubicaciones.</p>
+      {/* Modern Filter & Action Toolbar */}
+      <div className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-3.5 shadow-sm flex flex-col gap-3.5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Brand select + Search */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <select
+              value={activeBrand}
+              onChange={(e) => setActiveBrand(e.target.value as any)}
+              className="bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 text-xs font-bold text-[var(--ink)] rounded-xl focus:outline-none focus:border-blue-500/50 transition-all uppercase cursor-pointer shadow-sm"
+            >
+              <option value="OVERSHARK">OVERSHARK</option>
+              <option value="BRAVOS">BRAVOS URBAN</option>
+              <option value="BOX_PRIME">BOX PRIME</option>
+            </select>
+
+            <div className="relative w-64">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--ink)]/40 pointer-events-none" />
+              <input
+                type="text" 
+                placeholder="BUSCAR SKU O PRENDA..." 
+                value={search} 
+                onChange={e => setSearch(e.target.value)}
+                className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] pl-8 pr-3 py-2 text-xs font-semibold text-[var(--ink)] placeholder-[var(--ink)]/40 rounded-xl focus:outline-none focus:border-blue-500/50 transition-all uppercase"
+              />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--ink)]/40 hover:text-[var(--ink)]">
+                  <X size={13} />
+                </button>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-2">
             {canEdit(currentUser.role, 'inventory') && (
               <>
                 <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-[var(--surface)] border border-[var(--border)]/50 text-[var(--ink)] hover:bg-[var(--bg-input)] shadow-sm font-semibold text-[11px] px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase"
+                  className="modern-btn px-3.5 py-2 text-xs flex items-center gap-1.5"
                   title="IMPORTAR CSV"
                 >
-                  <Upload size={13} /><span className="hidden sm:inline">IMPORTAR</span>
+                  <Upload size={14} />
+                  <span className="hidden sm:inline">Importar</span>
                 </button>
               </>
             )}
+            
             <button
               onClick={exportCSV}
-              className="bg-[var(--surface)] border border-[var(--border)]/50 text-[var(--ink)] hover:bg-[var(--bg-input)] shadow-sm font-semibold text-[11px] px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase"
+              className="modern-btn px-3.5 py-2 text-xs flex items-center gap-1.5"
               title="EXPORTAR CSV"
             >
-              <Download size={13} /><span className="hidden sm:inline">EXPORTAR</span>
+              <Download size={14} />
+              <span className="hidden sm:inline">Exportar</span>
             </button>
+
             {canEdit(currentUser.role, 'inventory') && (
               <>
                 <button
                   onClick={() => setShowVariantsModal(true)}
-                  className="bg-transparent hover:bg-[var(--border)]/10 text-[var(--ink)] border border-[var(--border)]/50 shadow-sm px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase font-semibold text-[11px] h-full"
+                  className="modern-btn px-3.5 py-2 text-xs flex items-center gap-1.5 text-blue-600 dark:text-blue-400 border-blue-500/30 hover:bg-blue-500/10"
                   title="CREAR VARIANTES EN LOTE"
                 >
-                  <Package size={13} /><span className="hidden sm:inline">VARIANTES</span>
+                  <Sparkles size={14} />
+                  <span>Variantes</span>
                 </button>
+
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm font-semibold text-[11px] px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase border border-transparent"
+                  className="modern-btn-primary px-4 py-2 text-xs flex items-center gap-1.5"
                 >
-                  <Plus size={13} /><span className="hidden xs:inline">NUEVO SKU</span><span className="xs:hidden">NUEVO</span>
+                  <Plus size={14} />
+                  <span>Nuevo SKU</span>
                 </button>
               </>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mt-2 pb-2 overflow-x-auto">
-          <select
-            value={activeBrand}
-            onChange={(e) => setActiveBrand(e.target.value as any)}
-            className="shrink-0 bg-[var(--surface)] border border-[var(--border)]/30 px-3 py-1.5 text-[10px] font-semibold text-[var(--ink)] rounded-lg focus:outline-none transition-all uppercase cursor-pointer w-28 shadow-sm"
+        {/* Fabric filters pills */}
+        <div className="flex items-center gap-1.5 pt-2 border-t border-[var(--border-soft)]/50 overflow-x-auto pb-1">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]/40 shrink-0 mr-1 flex items-center gap-1">
+            <Layers size={12} /> Tejido:
+          </span>
+          <button
+            onClick={() => setFilterFabric(null)}
+            className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
+              !filterFabric 
+                ? 'bg-blue-600 text-white shadow-sm' 
+                : 'bg-[var(--bg-input)] text-[var(--ink)]/70 hover:text-[var(--ink)] hover:bg-[var(--border-soft)]'
+            }`}
           >
-            <option value="OVERSHARK">OVERSHARK</option>
-            <option value="BRAVOS">BRAVOS URBAN</option>
-            <option value="BOX_PRIME">BOX PRIME</option>
-          </select>
-          <div className="shrink-0 relative w-48 bg-[var(--surface)] rounded-lg border border-[var(--border)]/30 shadow-sm">
-            <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 opacity-40 text-[var(--ink)]" />
-            <input
-              type="text" placeholder="BUSCAR..." value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full bg-transparent pl-7 pr-3 py-1.5 text-[10px] font-semibold text-[var(--ink)] placeholder-[var(--ink)]/40 focus:outline-none transition-all uppercase"
-            />
-          </div>
-
-          <div className="flex items-center gap-1.5 ml-2 border-l border-[var(--border)]/20 pl-4">
+            TODOS
+          </button>
+          {FABRIC_TYPES.map(c => (
             <button
-              onClick={() => setFilterFabric(null)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shadow-sm ${!filterFabric ? 'bg-blue-600 text-white' : 'bg-[var(--surface)] text-[var(--ink)] border border-[var(--border)]/30 hover:bg-[var(--border)]/10'}`}
+              key={c}
+              onClick={() => setFilterFabric(c)}
+              className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
+                filterFabric === c 
+                  ? 'bg-blue-600 text-white shadow-sm' 
+                  : 'bg-[var(--bg-input)] text-[var(--ink)]/70 hover:text-[var(--ink)] hover:bg-[var(--border-soft)]'
+              }`}
             >
-              TODAS
+              {c}
             </button>
-            {FABRIC_TYPES.map(c => (
-              <button
-                key={c}
-                onClick={() => setFilterFabric(c)}
-                className={`shrink-0 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all shadow-sm ${filterFabric === c ? 'bg-blue-600 text-white' : 'bg-[var(--surface)] text-[var(--ink)] border border-[var(--border)]/30 hover:bg-[var(--border)]/10'}`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
+
       {/* Product Grid */}
-      <div className="flex-1 overflow-auto mt-2">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 pb-12">
-          {sortedProductNames.length === 0 && (
-            <div className="col-span-full p-12 flex items-center justify-center text-[var(--ink)] opacity-50 font-sans text-sm uppercase">NO HAY PRODUCTOS COINCIDENTES</div>
-          )}
-          {sortedProductNames.map(productName => {
-            const productItems = groupedByProduct[productName];
-            const productTotal = productItems.reduce((s, i) => s + i.totalStock, 0);
-            
-            return (
-              <div 
-                key={productName}
-                onClick={() => {
-                  setSelectedProductForModal(productName);
-                  setModalColorFilter(null);
-                  setModalSizeFilter(null);
-                }}
-                className="bg-[var(--surface)] border border-[var(--border)]/20 rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:shadow-lg hover:border-blue-500/50 hover:-translate-y-1 transition-all group shadow-sm"
-              >
-                <div className="w-12 h-12 rounded-xl bg-[var(--border)]/5 flex items-center justify-center">
-                  <Package size={24} className="text-[var(--ink)]/40 group-hover:text-blue-500 group-hover:scale-110 transition-all" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+        {sortedProductNames.length === 0 && (
+          <div className="col-span-full py-16 flex flex-col items-center justify-center text-center gap-3 bg-[var(--surface)] rounded-2xl border border-[var(--border-soft)]">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--border-soft)]/50 flex items-center justify-center text-[var(--ink)]/30">
+              <Package size={24} />
+            </div>
+            <div>
+              <p className="font-bold text-sm text-[var(--ink)]">No hay productos que coincidan</p>
+              <p className="text-xs text-[var(--ink)]/50 mt-0.5">Prueba cambiando los filtros o agregando nuevos SKUs</p>
+            </div>
+          </div>
+        )}
+
+        {sortedProductNames.map(productName => {
+          const productItems = groupedByProduct[productName];
+          const productTotal = productItems.reduce((s, i) => s + i.totalStock, 0);
+          
+          return (
+            <div 
+              key={productName}
+              onClick={() => {
+                setSelectedProductForModal(productName);
+                setModalColorFilter(null);
+                setModalSizeFilter(null);
+              }}
+              className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-2xl p-4 flex flex-col gap-3 cursor-pointer hover:shadow-lg hover:border-blue-500/40 hover:-translate-y-0.5 transition-all group shadow-sm"
+            >
+              <div className="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <Package size={20} className="text-blue-500 group-hover:scale-110 transition-transform" />
+              </div>
+              <h3 className="font-bold text-[var(--ink)] text-xs line-clamp-2 leading-snug min-h-[34px] group-hover:text-blue-500 transition-colors">
+                {productName}
+              </h3>
+              <div className="mt-auto pt-3 flex items-center justify-between border-t border-[var(--border-soft)]/60">
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase font-bold text-[var(--ink)]/40 tracking-wider">Variantes</span>
+                  <span className="text-xs font-semibold text-[var(--ink)]/70">{productItems.length} SKU</span>
                 </div>
-                <h3 className="font-bold text-[var(--ink)] text-[13px] line-clamp-2 leading-tight min-h-[36px]">{productName}</h3>
-                <div className="mt-auto pt-3 flex items-center justify-between border-t border-[var(--border)]/10">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] uppercase font-bold text-[var(--ink)]/40 tracking-wider">Variantes</span>
-                    <span className="text-xs font-semibold text-[var(--ink)]/70">{productItems.length} SKU</span>
-                  </div>
-                  <div className="flex flex-col text-right">
-                    <span className="text-[9px] uppercase font-bold text-[var(--ink)]/40 tracking-wider">Stock</span>
-                    <span className="text-sm font-black text-blue-600 dark:text-blue-400">{productTotal}</span>
-                  </div>
+                <div className="flex flex-col text-right">
+                  <span className="text-[9px] uppercase font-bold text-[var(--ink)]/40 tracking-wider">Stock</span>
+                  <span className="text-sm font-black text-blue-600 dark:text-blue-400">{productTotal}</span>
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Product Details Modal */}
       {selectedProductForModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-[var(--bg)] w-full max-w-4xl h-[85vh] max-h-[600px] rounded-3xl shadow-2xl flex flex-col border border-[var(--border)]/20 overflow-hidden relative">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[var(--surface)] w-full max-w-4xl h-[85vh] max-h-[640px] rounded-3xl shadow-2xl flex flex-col border border-[var(--border-soft)] overflow-hidden relative">
             
             {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-[var(--border)]/10 flex justify-between items-start bg-[var(--surface)]">
+            <div className="p-5 sm:p-6 border-b border-[var(--border-soft)] flex justify-between items-center bg-[var(--surface)] gap-3">
               <div className="min-w-0">
                 <h2 className="text-lg sm:text-2xl font-black text-[var(--ink)] tracking-tight truncate">{selectedProductForModal}</h2>
-                <p className="text-[10px] sm:text-[11px] font-bold text-[var(--ink)]/50 uppercase tracking-widest mt-1">
-                  {groupedByProduct[selectedProductForModal].length} VARIANTES REGISTRADAS
+                <p className="text-[10px] sm:text-xs font-bold text-[var(--ink)]/50 uppercase tracking-widest mt-1">
+                  {groupedByProduct[selectedProductForModal]?.length || 0} VARIANTES REGISTRADAS
                 </p>
               </div>
-              <button onClick={() => setSelectedProductForModal(null)} className="p-2 hover:bg-[var(--border)]/10 rounded-full transition-colors cursor-pointer">
-                <X size={20} className="text-[var(--ink)]" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {canEdit(currentUser.role, 'inventory') && (
+                  <button
+                    onClick={() => {
+                      const baseProduct = groupedByProduct[selectedProductForModal]?.[0];
+                      if (baseProduct) {
+                        selectVariantBase(baseProduct);
+                      } else {
+                        handleVariantNameChange(selectedProductForModal);
+                      }
+                      setSelectedProductForModal(null);
+                      setShowVariantsModal(true);
+                    }}
+                    className="modern-btn-primary px-3.5 py-2 text-xs flex items-center gap-1.5"
+                    title="Agregar nuevas tallas o colores a este producto"
+                  >
+                    <Plus size={14} />
+                    <span className="hidden sm:inline">Nuevas Variantes</span>
+                  </button>
+                )}
+                <button 
+                  onClick={() => setSelectedProductForModal(null)} 
+                  className="p-2 hover:bg-[var(--border-soft)] rounded-full transition-colors cursor-pointer text-[var(--ink)]/60 hover:text-[var(--ink)]"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             {/* Filters */}
-            <div className="p-4 border-b border-[var(--border)]/10 bg-[var(--surface)]/50 flex flex-col gap-4">
+            <div className="p-4 border-b border-[var(--border-soft)] bg-[var(--bg-input)]/40 flex flex-col gap-3">
               {/* Colors */}
               <div>
-                <span className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-2 block">Filtrar por Color:</span>
-                <div className="flex flex-wrap gap-2">
+                <span className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-wider mb-1.5 block">Filtrar por Color:</span>
+                <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={() => setModalColorFilter(null)}
-                    className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (!modalColorFilter ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                    className={"px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all " + (!modalColorFilter ? 'bg-blue-600 text-white shadow-sm' : 'bg-[var(--surface)] border border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]')}
                   >
                     TODOS
                   </button>
-                  {Array.from(new Set(groupedByProduct[selectedProductForModal].map(i => i.color || 'SIN COLOR'))).sort().map(color => (
+                  {Array.from(new Set(groupedByProduct[selectedProductForModal]?.map(i => i.color || 'SIN COLOR') || [])).sort().map(color => (
                     <button
                       key={color}
                       onClick={() => setModalColorFilter(color)}
-                      className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (modalColorFilter === color ? 'bg-blue-600 text-white shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                      className={"px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all " + (modalColorFilter === color ? 'bg-blue-600 text-white shadow-sm' : 'bg-[var(--surface)] border border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]')}
                     >
                       {color}
                     </button>
                   ))}
                 </div>
               </div>
+
               {/* Sizes */}
               <div>
-                <span className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-2 block">Filtrar por Talla:</span>
-                <div className="flex flex-wrap gap-2">
+                <span className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-wider mb-1.5 block">Filtrar por Talla:</span>
+                <div className="flex flex-wrap gap-1.5">
                   <button
                     onClick={() => setModalSizeFilter(null)}
-                    className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (!modalSizeFilter ? 'bg-zinc-800 dark:bg-gray-200 text-white dark:text-black shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                    className={"px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all " + (!modalSizeFilter ? 'bg-zinc-800 dark:bg-white text-white dark:text-zinc-900 shadow-sm' : 'bg-[var(--surface)] border border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]')}
                   >
                     TODAS
                   </button>
-                  {Array.from(new Set(groupedByProduct[selectedProductForModal].map(i => i.size || 'SIN TALLA'))).sort().map(size => (
+                  {Array.from(new Set(groupedByProduct[selectedProductForModal]?.map(i => i.size || 'SIN TALLA') || [])).sort().map(size => (
                     <button
                       key={size}
                       onClick={() => setModalSizeFilter(size)}
-                      className={"px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all " + (modalSizeFilter === size ? 'bg-zinc-800 dark:bg-gray-200 text-white dark:text-black shadow-sm' : 'bg-transparent border border-[var(--border)]/20 text-[var(--ink)] hover:bg-[var(--border)]/10')}
+                      className={"px-3 py-1 rounded-lg text-[10px] font-bold uppercase transition-all " + (modalSizeFilter === size ? 'bg-zinc-800 dark:bg-white text-white dark:text-zinc-900 shadow-sm' : 'bg-[var(--surface)] border border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]')}
                     >
                       {size}
                     </button>
@@ -628,56 +661,56 @@ export const Inventory: React.FC = () => {
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-auto bg-[var(--border)]/5 p-4">
-              <div className="flex flex-col gap-3">
-                {groupedByProduct[selectedProductForModal]
+            <div className="flex-1 overflow-auto p-4 sm:p-5">
+              <div className="flex flex-col gap-2.5">
+                {(groupedByProduct[selectedProductForModal] || [])
                   .filter(item => !modalColorFilter || (item.color || 'SIN COLOR') === modalColorFilter)
                   .filter(item => !modalSizeFilter || (item.size || 'SIN TALLA') === modalSizeFilter)
                   .map(item => (
-                  <div key={item.id} className="bg-[var(--surface)] border border-[var(--border)]/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-2 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-[var(--border)]/5 flex items-center justify-center shrink-0">
-                        <QrCode size={16} className="text-[var(--ink)]/40" />
+                  <div key={item.id} className="bg-[var(--surface)] border border-[var(--border-soft)] rounded-xl p-3.5 sm:p-4 flex items-center justify-between gap-3 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                        <QrCode size={18} className="text-blue-500" />
                       </div>
                       <div className="flex flex-col min-w-0">
-                        <span className="font-mono text-[13px] sm:text-sm font-bold text-[var(--ink)] truncate">{item.code}</span>
-                        <div className="flex gap-2 text-[10px] uppercase font-bold text-[var(--ink)]/60 mt-1">
-                          <span className="truncate">{item.color || 'N/A'}</span>
-                          <span className="opacity-50 shrink-0">•</span>
-                          <span className="shrink-0">{item.size || 'N/A'}</span>
+                        <span className="font-mono text-xs sm:text-sm font-bold text-[var(--ink)] truncate">{item.code}</span>
+                        <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-[var(--ink)]/60 mt-0.5">
+                          <span className="truncate">{item.color || 'Sin color'}</span>
+                          <span className="opacity-40">•</span>
+                          <span>{item.size || 'Sin talla'}</span>
                         </div>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-4 sm:gap-6 shrink-0">
                       <div className="text-right">
-                        <div className="text-[18px] sm:text-[20px] font-black text-[var(--ink)] leading-none">{item.totalStock}</div>
+                        <div className="text-lg sm:text-xl font-black text-[var(--ink)] leading-none">{item.totalStock}</div>
                         <div className="text-[9px] uppercase font-bold text-[var(--ink)]/40 mt-1 tracking-wider">Unidades</div>
                       </div>
                       
-                      <div className="flex items-center gap-1 border-l border-[var(--border)]/10 pl-3 sm:pl-6">
+                      <div className="flex items-center gap-1 border-l border-[var(--border-soft)] pl-3 sm:pl-4">
                         <button
                           onClick={(e) => { e.stopPropagation(); setQrProduct(item); }}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--border)]/10 text-[var(--ink)] transition-colors cursor-pointer"
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--border-soft)] text-[var(--ink)]/70 hover:text-[var(--ink)] transition-colors cursor-pointer"
                           title="Ver QR"
                         >
-                          <QrCode size={14} />
+                          <QrCode size={15} />
                         </button>
                         {canEdit(currentUser.role, 'inventory') && (
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); setEditingProduct(item); setShowEditModal(true); }}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[var(--border)]/10 text-blue-600 transition-colors cursor-pointer"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-500/10 text-blue-600 dark:text-blue-400 transition-colors cursor-pointer"
                               title="Editar"
                             >
-                              <Edit2 size={14} />
+                              <Edit2 size={15} />
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); setProductToDelete(item); }}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-600 transition-colors cursor-pointer"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer"
                               title="Eliminar"
                             >
-                              <Trash2 size={14} />
+                              <Trash2 size={15} />
                             </button>
                           </>
                         )}
@@ -692,95 +725,113 @@ export const Inventory: React.FC = () => {
         </div>
       )}
 
+      {/* Bulk Variants Modal */}
       {showVariantsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-[var(--bg)] bg-[var(--bg)] w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[92vh] border border-[var(--border)]/20 overflow-hidden relative">
-            <div className="p-6 border-b border-[var(--border)]/10 flex justify-between items-start bg-[var(--surface)]">
-              <h2 className="text-xl font-black text-[var(--ink)] tracking-tight">REGISTRO // VARIANTES_EN_LOTE</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[var(--surface)] w-full max-w-2xl rounded-3xl shadow-2xl flex flex-col max-h-[92vh] border border-[var(--border-soft)] overflow-hidden relative">
+            <div className="p-6 border-b border-[var(--border-soft)] flex justify-between items-center bg-[var(--surface)]">
+              <div>
+                <h2 className="text-xl font-black text-[var(--ink)] tracking-tight">Registro de Variantes en Lote</h2>
+                <p className="text-xs text-[var(--ink)]/50 mt-0.5">Genera automáticamente múltiples combinaciones de color y talla</p>
+              </div>
               <button
                 onClick={() => setShowVariantsModal(false)}
-                className="p-2 hover:bg-[var(--border)]/10 rounded-full transition-colors cursor-pointer text-[var(--ink)]"
+                className="p-2 hover:bg-[var(--border-soft)] rounded-full transition-colors cursor-pointer text-[var(--ink)]/60 hover:text-[var(--ink)]"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-5">
+            <div className="overflow-y-auto flex-1 p-6 flex flex-col gap-5">
               {/* Base fields */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">NOMBRE DEL PRODUCTO *</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Nombre del Producto *</label>
                   <input
                     required
                     list="product-names"
                     value={variantForm.name}
-                    onChange={e => setVariantForm({ ...variantForm, name: e.target.value })}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-4 py-3 rounded-xl text-[13px] font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all uppercase placeholder-[var(--ink)]/30"
-                    placeholder="EJ: CAMISA WAFFLE"
+                    onChange={e => handleVariantNameChange(e.target.value)}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all uppercase placeholder-[var(--ink)]/30"
+                    placeholder={activeBrand === 'BRAVOS' ? 'EJ: POLERA BOXYFIT' : 'EJ: CAMISA WAFFLE'}
                   />
+                  {variantForm.codePrefix && (
+                    <span className="text-[10px] text-blue-500 font-mono font-bold">
+                      ✓ Prefijo asignado: {variantForm.codePrefix}
+                    </span>
+                  )}
                 </div>
+
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">PREFIJO DE CÓDIGO *</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Prefijo de Código *</label>
                   <input
                     required
                     value={variantForm.codePrefix}
-                    onChange={e => setVariantForm({ ...variantForm, codePrefix: e.target.value })}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                    placeholder="EJ: CWF"
+                    onChange={e => setVariantForm({ ...variantForm, codePrefix: e.target.value.toUpperCase() })}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all uppercase placeholder-[var(--ink)]/30"
+                    placeholder={activeBrand === 'BRAVOS' ? 'EJ: BRV' : 'EJ: CWF'}
                   />
                 </div>
+
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">CATEGORÍA</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Categoría</label>
                   <input
                     list="category-list"
                     value={variantForm.category}
                     onChange={e => setVariantForm({ ...variantForm, category: e.target.value })}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-4 py-3 rounded-xl text-[13px] font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all uppercase placeholder-[var(--ink)]/30"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all uppercase placeholder-[var(--ink)]/30"
                     placeholder="EJ: POLOS"
                   />
                 </div>
+
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">UMBRAL MÍNIMO</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Umbral Mínimo</label>
                   <input
                     type="number"
                     value={variantForm.lowStockThreshold}
                     onChange={e => setVariantForm({ ...variantForm, lowStockThreshold: e.target.value })}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all placeholder-[var(--ink)]/30"
                     placeholder="EJ: 5"
                   />
                 </div>
+
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">COSTO (S/)</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Costo (S/)</label>
                   <input
                     type="number" step="0.01"
                     value={variantForm.costPrice}
                     onChange={e => setVariantForm({ ...variantForm, costPrice: e.target.value })}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all placeholder-[var(--ink)]/30"
                     placeholder="EJ: 15.50"
                   />
                 </div>
+
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">PRECIO VENTA (S/)</label>
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Precio Venta (S/)</label>
                   <input
                     type="number" step="0.01"
                     value={variantForm.sellPrice}
                     onChange={e => setVariantForm({ ...variantForm, sellPrice: e.target.value })}
-                    className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all placeholder-[var(--ink)]/30"
                     placeholder="EJ: 45.00"
                   />
                 </div>
               </div>
 
-              {/* Colors */}
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">COLORES</label>
+              {/* Colors selection */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-soft)]">
+                <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Colores</label>
                 <div className="flex flex-wrap gap-1.5">
                   {PRESET_COLORS.map(c => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => toggleVariantColor(c)}
-                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantColors.includes(c) ? 'bg-blue-600 border-transparent text-white shadow-sm rounded-lg' : 'bg-[var(--surface)] border-[var(--border)]/20 text-[var(--ink)]/70 hover:bg-[var(--border)]/10 rounded-lg'}`}
+                      className={`px-2.5 py-1 text-[10px] font-bold uppercase transition-all rounded-lg ${
+                        variantColors.includes(c) 
+                          ? 'bg-blue-600 text-white shadow-sm' 
+                          : 'bg-[var(--bg-input)] border border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]'
+                      }`}
                     >
                       {c}
                     </button>
@@ -791,32 +842,36 @@ export const Inventory: React.FC = () => {
                     value={customColor}
                     onChange={e => setCustomColor(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && customColor.trim()) { toggleVariantColor(customColor.trim()); setCustomColor(''); e.preventDefault(); }}}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 transition-all uppercase placeholder-[var(--ink)]/30 flex-1"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 rounded-xl text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all uppercase placeholder-[var(--ink)]/30 flex-1"
                     placeholder="OTRO COLOR + ENTER"
                   />
                   <button
                     type="button"
                     onClick={() => { if (customColor.trim()) { toggleVariantColor(customColor.trim()); setCustomColor(''); }}}
-                    className="bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg hover:bg-[var(--border)]/10 text-[var(--ink)] transition-colors cursor-pointer"
+                    className="modern-btn px-3 py-2 text-xs"
                   >
                     +
                   </button>
                 </div>
                 {variantColors.length > 0 && (
-                  <p className="font-mono text-[9px] opacity-60">Seleccionados: {variantColors.join(', ')}</p>
+                  <p className="text-[11px] text-[var(--ink)]/60 font-medium">Seleccionados: {variantColors.join(', ')}</p>
                 )}
               </div>
 
-              {/* Sizes */}
-              <div className="flex flex-col gap-2">
-                <label className="text-[10px] font-bold text-[var(--ink)]/40 uppercase tracking-widest mb-1">TALLAS</label>
+              {/* Sizes selection */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-[var(--border-soft)]">
+                <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Tallas</label>
                 <div className="flex flex-wrap gap-1.5">
                   {PRESET_SIZES.map(s => (
                     <button
                       key={s}
                       type="button"
                       onClick={() => toggleVariantSize(s)}
-                      className={`px-2.5 py-1 text-[9px] font-mono font-bold uppercase border transition-all ${variantSizes.includes(s) ? 'bg-blue-600 border-transparent text-white shadow-sm rounded-lg' : 'bg-[var(--surface)] border-[var(--border)]/20 text-[var(--ink)]/70 hover:bg-[var(--border)]/10 rounded-lg'}`}
+                      className={`px-2.5 py-1 text-[10px] font-bold uppercase transition-all rounded-lg ${
+                        variantSizes.includes(s) 
+                          ? 'bg-blue-600 text-white shadow-sm' 
+                          : 'bg-[var(--bg-input)] border border-[var(--border-soft)] text-[var(--ink)]/70 hover:bg-[var(--border-soft)]'
+                      }`}
                     >
                       {s}
                     </button>
@@ -827,48 +882,72 @@ export const Inventory: React.FC = () => {
                     value={customSize}
                     onChange={e => setCustomSize(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' && customSize.trim()) { toggleVariantSize(customSize.trim()); setCustomSize(''); e.preventDefault(); }}}
-                    className="w-full bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500/50 transition-all uppercase placeholder-[var(--ink)]/30 flex-1"
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3 py-2 rounded-xl text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-blue-500 transition-all uppercase placeholder-[var(--ink)]/30 flex-1"
                     placeholder="OTRA TALLA + ENTER"
                   />
                   <button
                     type="button"
                     onClick={() => { if (customSize.trim()) { toggleVariantSize(customSize.trim()); setCustomSize(''); }}}
-                    className="bg-[var(--surface)] border border-[var(--border)]/20 px-3 py-2 rounded-lg hover:bg-[var(--border)]/10 text-[var(--ink)] transition-colors cursor-pointer"
+                    className="modern-btn px-3 py-2 text-xs"
                   >
                     +
                   </button>
                 </div>
                 {variantSizes.length > 0 && (
-                  <p className="font-mono text-[9px] opacity-60">Seleccionadas: {variantSizes.join(', ')}</p>
+                  <p className="text-[11px] text-[var(--ink)]/60 font-medium">Seleccionadas: {variantSizes.join(', ')}</p>
                 )}
               </div>
 
-              {/* Preview count */}
-              {(variantForm.name || variantForm.codePrefix) && (
-                <div className="border border-[var(--border)] bg-[var(--surface)] p-3 flex items-center justify-between">
-                  <span className="font-mono text-[10px] opacity-70 uppercase tracking-widest">SKUs a generar</span>
-                  <span className="font-mono font-black text-xl">
-                    {Math.max(variantColors.length || 1, 1) * Math.max(variantSizes.length || 1, 1)}
-                  </span>
+              {/* Preview calculation */}
+              {(variantForm.name || variantForm.codePrefix) && (() => {
+                const count = Math.max(variantColors.length || 1, 1) * Math.max(variantSizes.length || 1, 1);
+                const info = variantForm.codePrefix ? getNextCodeInfo(variantForm.codePrefix) : null;
+                const startCode = info ? `${variantForm.codePrefix.toUpperCase()}-${String(info.nextIdx).padStart(info.padLength, '0')}` : '';
+                const endCode = info ? `${variantForm.codePrefix.toUpperCase()}-${String(info.nextIdx + count - 1).padStart(info.padLength, '0')}` : '';
+                return (
+                  <div className="border border-blue-500/20 bg-blue-500/5 p-4 flex items-center justify-between rounded-2xl">
+                    <div>
+                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">SKUs a generar</span>
+                      {info && (
+                        <span className="font-mono text-xs text-[var(--ink)]/80 font-bold block mt-0.5">
+                          Códigos correlativos: {startCode} {count > 1 ? `hasta ${endCode}` : ''}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-2xl font-black text-blue-600 dark:text-blue-400">
+                      {count}
+                    </span>
+                  </div>
+                );
+              })()}
+
+              {variantError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 text-xs font-semibold rounded-xl">
+                  {variantError}
                 </div>
               )}
             </div>
 
-            <div className="p-4 border-t border-[var(--border)] flex justify-end gap-3 shrink-0">
+            <div className="p-4 border-t border-[var(--border-soft)] flex justify-end gap-3 bg-[var(--surface)]">
               <button
                 type="button"
                 onClick={() => setShowVariantsModal(false)}
-                className="bg-transparent border border-[var(--border)]/20 text-[var(--ink)] px-5 py-2.5 rounded-xl hover:bg-[var(--border)]/10 transition-colors font-semibold text-[11px] uppercase"
+                disabled={isSubmittingVariants}
+                className="modern-btn px-4 py-2.5 text-xs uppercase"
               >
-                CANCELAR
+                Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleAddVariants}
-                disabled={!variantForm.name || !variantForm.codePrefix}
-                className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled={!variantForm.name || !variantForm.codePrefix || isSubmittingVariants}
+                className="modern-btn-primary px-5 py-2.5 text-xs flex items-center gap-2 uppercase disabled:opacity-40"
               >
-                CREAR_{Math.max(variantColors.length || 1, 1) * Math.max(variantSizes.length || 1, 1)}_SKUs
+                {isSubmittingVariants ? (
+                  <span>Creando SKUs...</span>
+                ) : (
+                  <span>Crear {Math.max(variantColors.length || 1, 1) * Math.max(variantSizes.length || 1, 1)} SKUs</span>
+                )}
               </button>
             </div>
           </div>
@@ -876,109 +955,146 @@ export const Inventory: React.FC = () => {
       )}
 
       {/* Add Product Modal */}
-      
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-md shadow-[8px_8px_0_var(--border)] flex flex-col">
-            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">REGISTRO // NUEVO_SKU</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity">
+          <div className="bg-[var(--surface)] border border-[var(--border-soft)] w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-[var(--border-soft)] flex justify-between items-center bg-[var(--surface)]">
+              <div>
+                <h2 className="text-lg font-black text-[var(--ink)] tracking-tight">Nuevo SKU</h2>
+                <p className="text-xs text-[var(--ink)]/50 mt-0.5">Registra un producto individual en el catálogo</p>
+              </div>
               <button 
                 onClick={() => setShowAddModal(false)} 
-                className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 border border-transparent hover:border-[var(--border)] transition-all"
+                className="p-2 hover:bg-[var(--border-soft)] rounded-full transition-colors text-[var(--ink)]/60 hover:text-[var(--ink)]"
               >
-                <X size={16}/>
+                <X size={18}/>
               </button>
             </div>
             
-            <form onSubmit={handleAddSubmit} className="p-5 flex flex-col gap-4">
+            <form onSubmit={handleAddSubmit} className="p-5 flex flex-col gap-3.5">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CODIGO SKU</label>
+                <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Código SKU *</label>
                 <input 
                   required
                   value={newProduct.code}
                   onChange={e => setNewProduct({...newProduct, code: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase focus:outline-none focus:border-blue-500 transition-all"
                   placeholder="EJ: SKU-0010"
                 />
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE DEL PRODUCTO</label>
+                <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Nombre del Producto *</label>
                 <input 
                   required
                   list="product-names"
                   value={newProduct.name}
-                  onChange={e => setNewProduct({...newProduct, name: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: CAMISA WAFFLE"
+                  onChange={e => {
+                    const val = e.target.value;
+                    const match = products.find(p => p.name.trim().toUpperCase() === val.trim().toUpperCase());
+                    if (match && !newProduct.code) {
+                      const prefix = match.code.includes('-') ? match.code.split('-')[0] : match.code;
+                      const { nextIdx, padLength } = getNextCodeInfo(prefix);
+                      setNewProduct(prev => ({
+                        ...prev,
+                        name: val,
+                        code: `${prefix.toUpperCase()}-${String(nextIdx).padStart(padLength, '0')}`,
+                        category: match.category || prev.category,
+                        lowStockThreshold: match.lowStockThreshold != null ? String(match.lowStockThreshold) : prev.lowStockThreshold,
+                        costPrice: match.costPrice != null ? String(match.costPrice) : prev.costPrice,
+                        sellPrice: match.sellPrice != null ? String(match.sellPrice) : prev.sellPrice
+                      }));
+                    } else {
+                      setNewProduct(prev => ({ ...prev, name: val }));
+                    }
+                  }}
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
+                  placeholder={activeBrand === 'BRAVOS' ? 'EJ: POLERA BOXYFIT' : 'EJ: CAMISA WAFFLE'}
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COLOR (OPCIONAL)</label>
-                <input 
-                  value={newProduct.color}
-                  onChange={e => setNewProduct({...newProduct, color: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: NEGRO"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Color</label>
+                  <input 
+                    value={newProduct.color}
+                    onChange={e => setNewProduct({...newProduct, color: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: NEGRO"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Talla</label>
+                  <input 
+                    value={newProduct.size}
+                    onChange={e => setNewProduct({...newProduct, size: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: XL"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TALLA (OPCIONAL)</label>
-                <input 
-                  value={newProduct.size}
-                  onChange={e => setNewProduct({...newProduct, size: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: XL"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Categoría</label>
+                  <input 
+                    list="category-list"
+                    value={newProduct.category}
+                    onChange={e => setNewProduct({...newProduct, category: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: POLOS"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Umbral Mínimo</label>
+                  <input 
+                    type="number"
+                    value={newProduct.lowStockThreshold}
+                    onChange={e => setNewProduct({...newProduct, lowStockThreshold: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: 10"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORIA</label>
-                <input 
-                  list="category-list"
-                  value={newProduct.category}
-                  onChange={e => setNewProduct({...newProduct, category: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: POLOS"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">UMBRAL MIN. DE STOCK (OPCIONAL)</label>
-                <input 
-                  type="number"
-                  value={newProduct.lowStockThreshold}
-                  onChange={e => setNewProduct({...newProduct, lowStockThreshold: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: 10"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COSTO (S/)</label>
-                <input 
-                  type="number"
-                  step="0.01"
-                  value={newProduct.costPrice}
-                  onChange={e => setNewProduct({...newProduct, costPrice: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: 15.50"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">PRECIO VENTA (S/)</label>
-                <input 
-                  type="number"
-                  step="0.01"
-                  value={newProduct.sellPrice}
-                  onChange={e => setNewProduct({...newProduct, sellPrice: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: 45.00"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Costo (S/)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    value={newProduct.costPrice}
+                    onChange={e => setNewProduct({...newProduct, costPrice: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: 15.50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Precio Venta (S/)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    value={newProduct.sellPrice}
+                    onChange={e => setNewProduct({...newProduct, sellPrice: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: 45.00"
+                  />
+                </div>
               </div>
               
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-end gap-2.5 pt-3 border-t border-[var(--border-soft)]">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddModal(false)}
+                  className="modern-btn px-4 py-2 text-xs uppercase"
+                >
+                  Cancelar
+                </button>
                 <button 
                   type="submit" 
-                  className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all"
+                  className="modern-btn-primary px-5 py-2 text-xs uppercase"
                 >
-                  CREAR_REGISTRO
+                  Crear SKU
                 </button>
               </div>
             </form>
@@ -988,142 +1104,168 @@ export const Inventory: React.FC = () => {
 
       {/* Edit Product Modal */}
       {showEditModal && editingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-md shadow-[8px_8px_0_var(--border)] flex flex-col">
-            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex justify-between items-center">
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest">EDICION // SKU</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity">
+          <div className="bg-[var(--surface)] border border-[var(--border-soft)] w-full max-w-md rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-[var(--border-soft)] flex justify-between items-center bg-[var(--surface)]">
+              <div>
+                <h2 className="text-lg font-black text-[var(--ink)] tracking-tight">Editar SKU</h2>
+                <p className="text-xs text-[var(--ink)]/50 mt-0.5">Modifica los detalles del producto seleccionado</p>
+              </div>
               <button 
                 onClick={() => {setShowEditModal(false); setEditingProduct(null);}} 
-                className="opacity-60 hover:opacity-100 hover:bg-[var(--ink)] hover:text-[var(--ink-inv)] p-1 border border-transparent hover:border-[var(--border)] transition-all"
+                className="p-2 hover:bg-[var(--border-soft)] rounded-full transition-colors text-[var(--ink)]/60 hover:text-[var(--ink)]"
               >
-                <X size={16}/>
+                <X size={18}/>
               </button>
             </div>
             
-            <form onSubmit={handleEditSubmit} className="p-5 flex flex-col gap-4">
+            <form onSubmit={handleEditSubmit} className="p-5 flex flex-col gap-3.5">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CODIGO SKU</label>
+                <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Código SKU</label>
                 <input 
                   required
                   value={editingProduct.code}
                   onChange={e => setEditingProduct({...editingProduct, code: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold uppercase focus:outline-none focus:border-blue-500 transition-all"
                   placeholder="EJ: SKU-0010"
                 />
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">NOMBRE DEL PRODUCTO</label>
+                <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Nombre del Producto</label>
                 <input 
                   required
                   list="product-names"
                   value={editingProduct.name}
                   onChange={e => setEditingProduct({...editingProduct, name: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
+                  className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
                   placeholder="EJ: CAMISA WAFFLE"
                 />
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COLOR (OPCIONAL)</label>
-                <input 
-                  value={editingProduct.color || ''}
-                  onChange={e => setEditingProduct({...editingProduct, color: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: NEGRO"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Color</label>
+                  <input 
+                    value={editingProduct.color || ''}
+                    onChange={e => setEditingProduct({...editingProduct, color: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: NEGRO"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Talla</label>
+                  <input 
+                    value={editingProduct.size || ''}
+                    onChange={e => setEditingProduct({...editingProduct, size: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: XL"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">TALLA (OPCIONAL)</label>
-                <input 
-                  value={editingProduct.size || ''}
-                  onChange={e => setEditingProduct({...editingProduct, size: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: XL"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Categoría</label>
+                  <input 
+                    list="category-list"
+                    value={editingProduct.category}
+                    onChange={e => setEditingProduct({...editingProduct, category: e.target.value})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold uppercase focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: POLOS"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Umbral Mínimo</label>
+                  <input 
+                    type="number"
+                    value={editingProduct.lowStockThreshold ?? ''}
+                    onChange={e => setEditingProduct({...editingProduct, lowStockThreshold: e.target.value ? Number(e.target.value) : undefined})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: 10"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">CATEGORIA</label>
-                <input 
-                  list="category-list"
-                  value={editingProduct.category}
-                  onChange={e => setEditingProduct({...editingProduct, category: e.target.value})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: POLOS"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">UMBRAL MIN. DE STOCK (OPCIONAL)</label>
-                <input 
-                  type="number"
-                  value={editingProduct.lowStockThreshold ?? ''}
-                  onChange={e => setEditingProduct({...editingProduct, lowStockThreshold: e.target.value ? Number(e.target.value) : undefined})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: 10"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">COSTO (S/)</label>
-                <input 
-                  type="number"
-                  step="0.01"
-                  value={editingProduct.costPrice ?? ''}
-                  onChange={e => setEditingProduct({...editingProduct, costPrice: e.target.value ? Number(e.target.value) : undefined})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: 15.50"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[9px] font-bold tracking-[0.2em] opacity-80 uppercase">PRECIO VENTA (S/)</label>
-                <input 
-                  type="number"
-                  step="0.01"
-                  value={editingProduct.sellPrice ?? ''}
-                  onChange={e => setEditingProduct({...editingProduct, sellPrice: e.target.value ? Number(e.target.value) : undefined})}
-                  className="bg-[var(--bg-card-alt)] border border-[var(--border)] p-2 text-xs font-bold font-mono uppercase focus:bg-[var(--bg-input)] focus:outline-none focus:shadow-[2px_2px_0_var(--border)] transition-all rounded-none"
-                  placeholder="EJ: 45.00"
-                />
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Costo (S/)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    value={editingProduct.costPrice ?? ''}
+                    onChange={e => setEditingProduct({...editingProduct, costPrice: e.target.value ? Number(e.target.value) : undefined})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: 15.50"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[10px] font-bold text-[var(--ink)]/50 uppercase tracking-wider">Precio Venta (S/)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    value={editingProduct.sellPrice ?? ''}
+                    onChange={e => setEditingProduct({...editingProduct, sellPrice: e.target.value ? Number(e.target.value) : undefined})}
+                    className="w-full bg-[var(--bg-input)] border border-[var(--border-soft)] px-3.5 py-2.5 rounded-xl text-xs font-semibold focus:outline-none focus:border-blue-500 transition-all"
+                    placeholder="EJ: 45.00"
+                  />
+                </div>
               </div>
               
-              <div className="mt-4 flex justify-end">
+              <div className="mt-4 flex justify-end gap-2.5 pt-3 border-t border-[var(--border-soft)]">
+                <button 
+                  type="button" 
+                  onClick={() => {setShowEditModal(false); setEditingProduct(null);}}
+                  className="modern-btn px-4 py-2 text-xs uppercase"
+                >
+                  Cancelar
+                </button>
                 <button 
                   type="submit" 
-                  className="bg-[var(--ink)] text-[var(--ink-inv)] border border-[var(--border)] px-6 py-2.5 text-[10px] font-mono tracking-widest font-bold shadow-[4px_4px_0_var(--border)] hover:bg-[var(--bg-input)] hover:text-[var(--ink)] active:shadow-none active:translate-y-[4px] active:translate-x-[4px] transition-all"
+                  className="modern-btn-primary px-5 py-2 text-xs uppercase"
                 >
-                  GUARDAR_CAMBIOS
+                  Guardar Cambios
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
       {/* Delete Confirmation Modal */}
       {productToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 transition-opacity">
-          <div className="bg-[var(--bg)] border-4 border-[var(--border)] w-full max-w-sm shadow-[8px_8px_0_var(--border)] flex flex-col">
-            <div className="p-3 border-b border-[var(--border)] bg-[var(--bg-sidebar)] flex gap-2 items-center">
-              <AlertTriangle size={16} className="text-red-600" />
-              <h2 className="font-serif italic font-bold text-xs uppercase tracking-widest text-[var(--ink)]">ELIMINAR SKU</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 transition-opacity">
+          <div className="bg-[var(--surface)] border border-red-500/20 w-full max-w-sm rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-[var(--border-soft)] flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                <AlertTriangle size={20} className="text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-[var(--ink)] tracking-tight">Eliminar SKU</h2>
+                <p className="text-xs text-[var(--ink)]/50 mt-0.5">Esta acción no se puede deshacer</p>
+              </div>
             </div>
             
-            <div className="p-5 flex flex-col gap-6">
-              <p className="font-mono text-sm font-bold text-center leading-relaxed">
-                Are you sure you want to delete this product? This action cannot be undone.
+            <div className="p-5 flex flex-col gap-4">
+              <p className="text-xs text-[var(--ink)]/80 leading-relaxed">
+                ¿Estás seguro de que deseas eliminar este producto del inventario?
               </p>
-              <div className="text-center bg-[var(--surface)] border border-[var(--border)]/20 p-2">
-                <span className="font-mono text-xs font-bold">{productToDelete.code}</span>
-                <span className="block text-[10px] font-mono opacity-70 mt-1">{productToDelete.name}</span>
+              <div className="bg-[var(--bg-input)] border border-[var(--border-soft)] rounded-xl p-3">
+                <span className="font-mono text-xs font-bold text-[var(--ink)]">{productToDelete.code}</span>
+                <span className="block text-xs text-[var(--ink)]/60 mt-0.5">{productToDelete.name}</span>
               </div>
-              <div className="flex justify-between gap-4 mt-2">
+              <div className="flex justify-end gap-2.5 mt-2">
                 <button 
                   onClick={() => setProductToDelete(null)}
-                  className="flex-1 bg-[var(--bg-input)] border border-[var(--border)] text-[var(--ink)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-[var(--ink)] hover:text-white transition-all shadow-[2px_2px_0_var(--border)]"
+                  className="modern-btn px-4 py-2 text-xs uppercase"
                 >
-                  Cancel
+                  Cancelar
                 </button>
                 <button 
                   onClick={confirmDelete}
-                  className="flex-1 bg-red-700 text-white border border-[var(--border)] px-4 py-2 text-[10px] font-mono tracking-widest font-bold hover:bg-black transition-all shadow-[2px_2px_0_var(--border)]"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl transition-all shadow-sm uppercase"
                 >
-                  Confirm
+                  Confirmar Eliminación
                 </button>
               </div>
             </div>
